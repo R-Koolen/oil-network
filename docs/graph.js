@@ -10,9 +10,11 @@ const WIDTH = 1100;
 const NODE_W = 12;
 const COL_X = [170, 550, 930];
 const TOP = 70;
-const GAP = 6;
-const MIN_NODE_H = 14;
-const MIN_PLOT_H = 560;
+const GAP = 4;
+const MIN_NODE_H = 10;
+// Height shared out by value on top of what the tallest column needs for its floors and gaps.
+// Without it the longest column has no spare height and every node falls to the floor.
+const VALUE_H = 400;
 
 const COLUMNS = [
   { layer: "production", title: "Crude oil production" },
@@ -53,7 +55,7 @@ function topFlows(flows, n) {
   return { shown, total: flows.length, share: sum(shown) / sum(flows), shownKusd: sum(shown), allKusd: sum(flows) };
 }
 
-// Heights are proportional to value within the column, with a floor so every node has a label.
+// Heights are proportional to value within the column; small values are held at a floor so every node has a label.
 function layoutColumn(items, plotH) {
   const flexible = items.filter((d) => d.value > 0);
   const fixed = new Set(items.filter((d) => !(d.value > 0)));
@@ -101,7 +103,7 @@ function draw(data) {
     return { ...c, layer, items, x: COL_X[i] };
   });
 
-  const plotH = Math.max(MIN_PLOT_H, d3.max(columns, (c) => c.items.length) * (MIN_NODE_H + GAP));
+  const plotH = d3.max(columns, (c) => c.items.length) * (MIN_NODE_H + GAP) - GAP + VALUE_H;
   columns.forEach((c) => layoutColumn(c.items, plotH));
   const byId = columns.map((c) => new Map(c.items.map((d) => [d.id, d])));
 
