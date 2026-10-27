@@ -60,6 +60,8 @@ for all of them. The start is set by BACI HS12, which begins in 2012. The end is
 - `trade.<group>`: one entry per exporter→importer pair, sorted by `from`, then `to`. `tonnes` is `null`
   when BACI has a value but no quantity for the flow (about 0.4–3% of flows). `kusd` is thousands of US dollars.
 - Values are rounded to 3 decimals.
+- UNdata footnote markers (for example "estimate") are fetched into `data/raw/undata_refining.csv` but not
+  carried into the JSON.
 
 ### What each layer measures
 
