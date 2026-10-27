@@ -27,11 +27,6 @@ UNDATA_LAYERS = {"131": "refining_capacity", "086": "refining_throughput"}
 UNDATA_M49_FIX = {251: "FRA", 382: "ITA", 579: "NOR", 757: "CHE", 158: "TWN"}
 # BACI "Other Asia, nes" is the UN trade-statistics label for Taiwan.
 BACI_ISO3_FIX = {"S19": "TWN"}
-# Areas missing from the M49 table, so they have no name or region there.
-EXTRA_AREAS = {
-    "TWN": ("Taiwan", "Asia", "Eastern Asia"),
-    "XKS": ("Kosovo", "Europe", "Southern Europe"),
-}
 # BACI HS12 folds all of HS 2710 (including waste oils) into one code.
 BACI_GROUPS = {"270900": "crude", "271000": "products"}
 
@@ -47,14 +42,17 @@ def number(s):
 
 
 def read_m49(path):
-    """ISO3 -> (name, region, sub-region) from the UNSD M49 overview page."""
+    """M49 numeric code -> ISO3, from the UNSD M49 overview page.
+
+    Used only to translate UNdata's codes. Its names and regions are not republished: the UN's general
+    copyright terms require written permission (see docs/SOURCES.md)."""
     text = path.read_text(encoding="utf-8")
     table = re.search(r'(?s)<table id = "downloadTableEN"[^>]*>(.*?)</table>', text).group(1)
     areas = {}
     for row in re.findall(r"(?s)<tr[^>]*>(.*?)</tr>", table):
         c = [html.unescape(re.sub(r"<[^>]+>", "", x)).strip() for x in re.findall(r"(?s)<td[^>]*>(.*?)</td>", row)]
         if c and c[9].isdigit() and c[11]:
-            areas[c[11]] = (c[8], c[3] or None, c[5] or None, int(c[9]))
+            areas[int(c[9])] = c[11]
     return areas
 
 
@@ -82,13 +80,13 @@ def read_eia(path):
                     world[layer][int(year)] = v
                 elif len(area) == 3 or area in EIA_EXTRA_AREAS:
                     values[layer][int(year)][area] = v
-                    names[area] = d["name"].split(", ")[1]
+                    names[area] = d["name"].split(", ", 1)[1].rsplit(", ", 1)[0]  # "<series>, <area>, Annual"
     return values, world, names
 
 
 def read_undata(path, m49):
-    """layer -> year -> {iso3: thousand tonnes}, plus names for areas outside M49."""
-    by_code = {v[3]: iso for iso, v in m49.items()} | UNDATA_M49_FIX
+    """layer -> year -> {iso3: thousand tonnes}."""
+    by_code = m49 | UNDATA_M49_FIX
     values = {layer: defaultdict(dict) for layer in UNDATA_LAYERS.values()}
     unmatched = set()
     with open(path, encoding="utf-8") as f:
@@ -115,7 +113,8 @@ def read_baci(path):
         for r in csv.DictReader(io.TextIOWrapper(z.open("country_codes_V202601.csv"), encoding="utf-8")):
             iso = BACI_ISO3_FIX.get(r["country_iso3"], r["country_iso3"])
             codes[r["country_code"]] = iso
-            names.setdefault(iso, r["country_name"])
+            # the file's non-ASCII names are UTF-8 encoded twice ("CuraÃ§ao")
+            names.setdefault(iso, r["country_name"].encode("latin-1").decode("utf-8"))
         for year in YEARS:
             with z.open(f"BACI_HS12_Y{year}_V202601.csv") as f:
                 next(f)
@@ -138,13 +137,7 @@ def build():
     baci, baci_names = read_baci(RAW / "BACI_HS12_V202601.zip")
 
     def node(area):
-        if area in m49:
-            name, region, subregion, _ = m49[area]
-        elif area in EXTRA_AREAS:
-            name, region, subregion = EXTRA_AREAS[area]
-        else:
-            name, region, subregion = eia_names.get(area) or baci_names[area], None, None
-        return {"id": area, "name": name, "region": region, "subregion": subregion}
+        return {"id": area, "name": eia_names.get(area) or baci_names[area]}
 
     OUT.mkdir(parents=True, exist_ok=True)
     for year in YEARS:
