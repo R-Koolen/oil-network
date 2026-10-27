@@ -13,7 +13,7 @@ Show this wherever the data is displayed (for example, in the site footer):
 > Refinery capacity and throughput: UNdata, United Nations Energy Statistics Database
 > (https://data.un.org/, last updated 15 Dec 2025).
 > Trade flows: CEPII, BACI HS12 version 202601 (https://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37,
-> version 202601, released 22 Jan 2026), Licence Ouverte / Open Licence 2.0 (Etalab). Gaulier, G. and Zignago, S. (2010),
+> released 22 Jan 2026), Licence Ouverte / Open Licence 2.0 (Etalab). Gaulier, G. and Zignago, S. (2010),
 > BACI: International Trade Database at the Product-Level. The 1994-2007 Version. CEPII Working Paper N°2010-23.
 
 When the data is refreshed, update the dates to those of the new files.
