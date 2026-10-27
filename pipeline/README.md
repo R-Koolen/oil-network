@@ -74,6 +74,10 @@ for all of them. The start is set by BACI HS12, which begins in 2012. The end is
 | `trade.crude` | BACI HS 270900, crude petroleum oils | tonnes, thousand USD |
 | `trade.products` | BACI HS 271000, petroleum oils other than crude: all of HS 2710, which in BACI HS12 also includes a small amount of waste oils | tonnes, thousand USD |
 
+UNdata's throughput sometimes exceeds its capacity. India, for example, ran at 101–111% of capacity in
+2012–2019, 2022 and 2023 (111% in 2023). Overall, 38 country-years across 15 countries exceed 100%. We haven't
+established why; the pipeline passes both through unchanged.
+
 **Units are not consistent across layers.** Production and consumption are volumes (kb/d), refining and trade
 are masses. To put mass on the same scale, a common approximation for crude is 7.33 barrels per tonne:
 `kb/d ≈ kt/yr × 7.33 / 365`. Products vary more in density, so no single factor is exact. The pipeline does
@@ -120,7 +124,7 @@ so nothing is left over.
   value implies. For example, 2023 crude ARE→THA is 214.9 Mt at $64/t, when the median is $649/t; 214.9 Mt is
   ~4.3 mb/d, several times Thailand's total crude imports. Flows below a quarter of the year's median unit
   value hold ~15% of 2023 crude tonnes and ~16% of 2020 product tonnes, but ~0% in 2015. The pipeline passes
-  BACI's numbers through unchanged. `kusd` is the more reliable measure of a flow's size; treat `tonnes` with
-  care.
+  BACI's numbers through unchanged. `kusd` looks reliable; `tonnes` does not. **Sizing graph edges by
+  `tonnes` will mislead**, so size them by `kusd`.
 - Trade isn't linked to production or consumption: imports minus exports won't exactly equal consumption
   minus production (stocks, bunkers, re-exports and differences in definitions all play a part).
