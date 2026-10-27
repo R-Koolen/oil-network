@@ -123,7 +123,7 @@ so nothing is left over.
 - **Some BACI quantities are implausible.** In some years a few large flows have tonnes far above what their
   value implies. For example, 2023 crude ARE→THA is 214.9 Mt at $64/t, when the median is $649/t; 214.9 Mt is
   ~4.3 mb/d, several times Thailand's total crude imports. Flows below a quarter of the year's median unit
-  value hold ~15% of 2023 crude tonnes and ~16% of 2020 product tonnes, but ~0% in 2015. The pipeline passes
+  value hold ~15% of 2023 crude tonnes and ~16% of 2020 product tonnes, but ~0% of 2015 crude tonnes. The pipeline passes
   BACI's numbers through unchanged. `kusd` looks reliable; `tonnes` does not. **Sizing graph edges by
   `tonnes` will mislead**, so size them by `kusd`.
 - Trade isn't linked to production or consumption: imports minus exports won't exactly equal consumption
