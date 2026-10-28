@@ -2,8 +2,10 @@
 
     python3 pipeline/build.py
 
-Standard library only. The output is deterministic: rerunning on the same raw files gives identical bytes.
-The JSON format is documented in pipeline/README.md.
+Also writes docs/data/summary.json (world totals, trade totals and the largest single flow for every year) and
+docs/data/countries.json (every country's layer values and trade totals for every year), so the page doesn't have
+to load every year file for a time series. Standard library only. The output is deterministic:
+rerunning on the same raw files gives identical bytes. The JSON format is documented in pipeline/README.md.
 """
 import csv
 import html
@@ -17,7 +19,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "docs" / "data"
-YEARS = range(2012, 2024)  # every layer has data for these years; UNdata 2024 lacks China, India and most others
+# Every layer has data for these years. UNdata 2024 lacks China, India and most others. BACI 2012 has implausible
+# crude imports to Taiwan (US$278 bn, against US$16-51 bn in every other year), so the series starts in 2013.
+YEARS = range(2013, 2024)
 
 EIA_SERIES = {"production": "57-1", "consumption": "5-2"}  # crude oil incl. lease condensate; petroleum and other liquids
 # EIA areas that are countries/territories but have no 3-letter code. Every other non-3-letter code is an aggregate.
@@ -29,6 +33,7 @@ UNDATA_M49_FIX = {251: "FRA", 382: "ITA", 579: "NOR", 757: "CHE", 158: "TWN"}
 BACI_ISO3_FIX = {"S19": "TWN"}
 # BACI HS12 folds all of HS 2710 (including waste oils) into one code.
 BACI_GROUPS = {"270900": "crude", "271000": "products"}
+LAYER_ORDER = ("production", "consumption", "refining_capacity", "refining_throughput")
 
 
 def number(s):
@@ -140,7 +145,25 @@ def build():
         return {"id": area, "name": eia_names.get(area) or baci_names[area]}
 
     OUT.mkdir(parents=True, exist_ok=True)
-    for year in YEARS:
+    summary = {"years": list(YEARS),
+               "world": {layer: {"unit": None, "values": []} for layer in LAYER_ORDER},
+               "trade": {group: {"unit": "kusd", "total": [], "max_flow": 0} for group in BACI_GROUPS.values()}}
+    n_years = len(YEARS)
+    countries = {}  # id -> {"name": ..., "production": [per year], ..., "crude": {"imports": [...], "exports": [...]}}
+
+    def country(area, name):
+        c = countries.get(area)
+        if c is None:
+            c = {"name": name}
+            for layer in LAYER_ORDER:
+                c[layer] = [None] * n_years
+            for group in BACI_GROUPS.values():
+                c[group] = {"imports": [None] * n_years, "exports": [None] * n_years}
+            countries[area] = c
+        c["name"] = name
+        return c
+
+    for i, year in enumerate(YEARS):
         layers = {}
         for layer in EIA_SERIES:
             layers[layer] = {"unit": "kb/d", "world": round(eia_world[layer][year], 3), "world_from": "source",
@@ -159,7 +182,30 @@ def build():
         doc = {"year": year, "nodes": [node(a) for a in sorted(ids)], "layers": layers, "trade": trade}
         (OUT / f"{year}.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")) + "\n",
                                           encoding="utf-8")
+        for n in doc["nodes"]:
+            country(n["id"], n["name"])
+        for layer, l in layers.items():
+            for a, v in l["values"].items():
+                countries[a][layer][i] = v
+        for group, flows in trade.items():
+            imports, exports = defaultdict(float), defaultdict(float)
+            for f in flows:
+                exports[f["from"]] += f["kusd"]
+                imports[f["to"]] += f["kusd"]
+            for a in imports.keys() | exports.keys():  # a country with no flow in this group that year stays None
+                countries[a][group]["imports"][i] = round(imports[a], 3)
+                countries[a][group]["exports"][i] = round(exports[a], 3)
+        for layer, l in layers.items():
+            summary["world"][layer]["unit"] = l["unit"]
+            summary["world"][layer]["values"].append(l["world"])
+        for group, flows in trade.items():
+            summary["trade"][group]["total"].append(round(sum(f["kusd"] for f in flows), 3))
+            summary["trade"][group]["max_flow"] = max(summary["trade"][group]["max_flow"], max(f["kusd"] for f in flows))
         print(f"wrote {year}.json")
+    (OUT / "summary.json").write_text(json.dumps(summary, separators=(",", ":")) + "\n", encoding="utf-8")
+    (OUT / "countries.json").write_text(
+        json.dumps({"years": list(YEARS), "countries": dict(sorted(countries.items()))}, ensure_ascii=False,
+                   separators=(",", ":")) + "\n", encoding="utf-8")
     (OUT / "index.json").write_text(json.dumps({"years": list(YEARS)}) + "\n", encoding="utf-8")
 
 

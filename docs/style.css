@@ -46,3 +46,49 @@ svg { width: 100%; height: auto; display: block; }
 .link.products { stroke: var(--products); }
 .link:hover { stroke-opacity: 0.9; }
 .legend text { font-size: 11px; fill: var(--muted); }
+#controls { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+#controls label, #controls output { font-weight: 600; }
+#controls output { min-width: 3.5em; font-variant-numeric: tabular-nums; }
+#year { flex: 1; max-width: 520px; }
+section h2 { font-size: 1.1rem; margin: 28px 0 4px; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0 0 8px; }
+#world { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+#world figure { margin: 0; }
+#world figcaption { font-size: 0.85rem; font-weight: 600; }
+#world .chosen { margin: 0; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+svg.mini { width: 100%; height: auto; }
+.mini .axis { stroke: var(--nodata); stroke-width: 1; }
+.mini .series { fill: none; stroke: var(--node); stroke-width: 1.5; }
+.mini .marker { stroke: var(--crude); fill: var(--crude); stroke-width: 1; }
+.mini .tick { font-size: 10px; fill: var(--muted); }
+#moves { font-size: 0.9rem; }
+#moves .lead { font-weight: 600; margin: 0 0 4px; }
+.moves-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 24px; }
+#moves h4 { margin: 0 0 2px; font-size: 0.85rem; }
+#moves ul { margin: 0; padding-left: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 8px; }
+#pick label { font-weight: 600; }
+#pick select, #pick button { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--nodata); border-radius: 4px; padding: 2px 6px; }
+#pick select { min-width: 14em; }
+#pick .hint { margin: 0; }
+.node { cursor: pointer; }
+.node.selected rect { fill: var(--crude); }
+.node.selected text { font-weight: 700; }
+.link.dim { stroke-opacity: 0.08; }
+.link.focus { stroke-opacity: 0.8; }
+#country-panel { margin: 16px 0; padding: 8px 16px 12px; border: 1px solid var(--nodata); border-radius: 6px; }
+#country-panel h2 { margin: 8px 0; font-size: 1.2rem; }
+#country-panel h3 { font-size: 1rem; margin: 16px 0 4px; }
+#country-panel .notice { margin: 4px 0; padding: 4px 8px; border-left: 3px solid var(--crude); font-size: 0.9rem; }
+.country-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 16px; }
+.country-charts figure { margin: 0; }
+.country-charts figcaption { font-size: 0.85rem; font-weight: 600; }
+.country-charts .chosen { margin: 0; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.trade { margin: 8px 0; font-size: 0.9rem; }
+.trade .lead { margin: 0 0 4px; font-weight: 600; }
+.partners { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 24px; }
+.partners h4 { margin: 0 0 2px; font-size: 0.85rem; }
+.partners ul { margin: 0; padding-left: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mini .series.b { stroke-dasharray: 4 3; stroke: var(--products); }
+.mini .dot { fill: var(--node); stroke: none; }
+.mini .dot.b { fill: var(--products); }

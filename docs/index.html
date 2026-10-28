@@ -13,16 +13,39 @@
   <p id="subtitle">Loading…</p>
 </header>
 <main>
+  <div id="controls">
+    <label for="year">Year</label>
+    <input type="range" id="year" min="2013" max="2023" step="1" value="2023" disabled>
+    <output id="year-out" for="year">2023</output>
+  </div>
+  <div id="pick">
+    <label for="country">Country</label>
+    <select id="country" disabled>
+      <option value="">None selected</option>
+    </select>
+    <button type="button" id="clear" hidden>Clear</button>
+    <span class="hint">Click a country in the graph, or choose one from the list, to see its numbers.</span>
+  </div>
   <p id="error" hidden></p>
   <div id="coverage"></div>
   <div id="chart"></div>
+  <section id="country-panel" hidden></section>
   <ul id="notes">
-    <li>The three columns are not on one scale: production and consumption are in thousand barrels per day (kb/d), refining throughput is in thousand tonnes per year (kt/yr). Node height is scaled within its column only; very small values are drawn at a minimum height.</li>
-    <li>Line width is trade value in US dollars, one scale for both crude and product flows. Tonnes are not used: some tonnage figures in the trade data are unreliable.</li>
+    <li>The three columns are not on one scale: production and consumption are in thousand barrels per day (kb/d), refining throughput is in thousand tonnes per year (kt/yr). Node height is proportional to value on a fixed scale for each column, the same in every year, so the same height means the same value whichever year you pick. Values too small for that scale are drawn at a minimum height.</li>
+    <li>Line width is trade value in US dollars, one scale for both crude and product flows and for every year. Trade values are nominal US dollars, so oil prices move them a lot. Tonnes are not used: some tonnage figures in the trade data are unreliable.</li>
     <li>Flows inside a country (for example, a country refining its own crude) are not in the data and are not drawn.</li>
     <li>A country marked “no data” appears because a drawn flow starts or ends there, but the source has no number for it in that column.</li>
     <li>Hover over a node or a line for its values.</li>
   </ul>
+  <section>
+    <h2>The world over time</h2>
+    <p class="hint">Each chart has its own unit and starts at zero; the dot marks the chosen year. Trade values are nominal US dollars.</p>
+    <div id="world"></div>
+  </section>
+  <section>
+    <h2>What changed from the year before</h2>
+    <div id="moves"></div>
+  </section>
 </main>
 <footer>
   <h2>Data sources</h2>
@@ -35,6 +58,8 @@
   BACI: International Trade Database at the Product-Level. The 1994-2007 Version. CEPII Working Paper N°2010-23.</p>
 </footer>
 <script src="vendor/d3.min.js"></script>
+<script src="compute.js"></script>
+<script src="panel.js"></script>
 <script src="graph.js"></script>
 </body>
 </html>

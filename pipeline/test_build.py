@@ -28,7 +28,7 @@ class Shape(unittest.TestCase):
         self.assertEqual(index["years"], list(build.YEARS))
         self.assertGreaterEqual(len(index["years"]), 10)
         self.assertEqual(sorted(p.stem for p in build.OUT.glob("*.json")),
-                         sorted([str(y) for y in build.YEARS] + ["index"]))
+                         sorted([str(y) for y in build.YEARS] + ["index", "summary", "countries"]))
 
     def test_every_year_has_all_layers_and_trade(self):
         for y, d in DOCS.items():
@@ -70,6 +70,74 @@ class Shape(unittest.TestCase):
                 l = d["layers"][layer]
                 tolerance = 0.0005 * len(l["values"]) + 1e-6  # values are rounded to 3 decimals
                 self.assertAlmostEqual(sum(l["values"].values()), l["world"], delta=tolerance, msg=f"{y} {layer}")
+
+
+class Summary(unittest.TestCase):
+    SUMMARY = json.loads((build.OUT / "summary.json").read_text(encoding="utf-8"))
+
+    def test_years_match_index(self):
+        self.assertEqual(self.SUMMARY["years"], list(build.YEARS))
+        self.assertEqual(self.SUMMARY["years"], json.loads((build.OUT / "index.json").read_text())["years"])
+
+    def test_world_values_equal_the_year_files(self):
+        self.assertEqual(list(self.SUMMARY["world"]), list(LAYERS))
+        for layer, s in self.SUMMARY["world"].items():
+            self.assertEqual(len(s["values"]), len(build.YEARS))
+            for y, v in zip(build.YEARS, s["values"]):
+                self.assertEqual(v, DOCS[y]["layers"][layer]["world"], f"{y} {layer}")
+            self.assertEqual({DOCS[y]["layers"][layer]["unit"] for y in build.YEARS}, {s["unit"]})
+
+    def test_trade_totals_equal_the_year_files(self):
+        self.assertEqual(list(self.SUMMARY["trade"]), ["crude", "products"])
+        for group, s in self.SUMMARY["trade"].items():
+            self.assertEqual(len(s["total"]), len(build.YEARS))
+            for y, t in zip(build.YEARS, s["total"]):
+                flows = DOCS[y]["trade"][group]
+                self.assertAlmostEqual(t, sum(f["kusd"] for f in flows), delta=0.0005, msg=f"{y} {group}")
+            self.assertEqual(s["max_flow"], max(f["kusd"] for y in build.YEARS for f in DOCS[y]["trade"][group]))
+
+    def test_summary_is_small(self):
+        self.assertLess((build.OUT / "summary.json").stat().st_size, 5000)
+
+
+class Countries(unittest.TestCase):
+    FILE = json.loads((build.OUT / "countries.json").read_text(encoding="utf-8"))
+
+    def test_years_and_countries_match_the_year_files(self):
+        self.assertEqual(self.FILE["years"], list(build.YEARS))
+        ids = {n["id"] for d in DOCS.values() for n in d["nodes"]}
+        self.assertEqual(set(self.FILE["countries"]), ids)
+        self.assertEqual(list(self.FILE["countries"]), sorted(ids))
+
+    def test_layer_values_equal_the_year_files(self):
+        for a, c in self.FILE["countries"].items():
+            for layer in LAYERS:
+                self.assertEqual(len(c[layer]), len(build.YEARS))
+                for i, y in enumerate(build.YEARS):
+                    self.assertEqual(c[layer][i], DOCS[y]["layers"][layer]["values"].get(a), f"{a} {y} {layer}")
+
+    def test_trade_totals_equal_the_year_files(self):
+        for group in ("crude", "products"):
+            for i, y in enumerate(build.YEARS):
+                imports, exports = defaultdict(float), defaultdict(float)
+                for f in DOCS[y]["trade"][group]:
+                    exports[f["from"]] += f["kusd"]
+                    imports[f["to"]] += f["kusd"]
+                for a, c in self.FILE["countries"].items():
+                    if a in imports or a in exports:
+                        self.assertAlmostEqual(c[group]["imports"][i], imports[a], delta=0.002, msg=f"{a} {y} {group}")
+                        self.assertAlmostEqual(c[group]["exports"][i], exports[a], delta=0.002, msg=f"{a} {y} {group}")
+                    else:
+                        self.assertIsNone(c[group]["imports"][i], f"{a} {y} {group}")
+                        self.assertIsNone(c[group]["exports"][i], f"{a} {y} {group}")
+
+    def test_names_are_the_latest_years(self):
+        names = {n["id"]: n["name"] for y in build.YEARS for n in DOCS[y]["nodes"]}
+        for a, c in self.FILE["countries"].items():
+            self.assertEqual(c["name"], names[a])
+
+    def test_file_is_small(self):
+        self.assertLess((build.OUT / "countries.json").stat().st_size, 600_000)
 
 
 class MatchesSource(unittest.TestCase):
