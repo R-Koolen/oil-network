@@ -25,9 +25,14 @@ EIA and UNdata revise their files, so a later fetch can produce different number
 
 ## Years
 
-`docs/data/index.json` lists the years: `{"years": [2012, …, 2023]}`. **2012–2023**: every layer has data
-for all of them. The start is set by BACI HS12, which begins in 2012. The end is set by UNdata refining:
-2024 has only 27 countries for capacity and 47 for throughput, with no China or India.
+`docs/data/index.json` lists the years: `{"years": [2013, …, 2023]}`. **2013–2023**: every layer has data
+for all of them. The end is set by UNdata refining: 2024 has only 27 countries for capacity and 47 for
+throughput, with no China or India.
+
+**2012 is left out on purpose**, although BACI HS12 begins in 2012 and the other sources cover it. BACI's 2012
+crude imports to Taiwan add up to US$278 bn (353 Mt), against US$16–51 bn in each of 2013–2023: SAU→TWN is
+US$187.1 bn and ARE→TWN US$89.6 bn. Both value and tonnes look wrong, and the two flows alone put about US$240 bn
+into that year's world crude trade total. Rather than change BACI's numbers, the series starts in 2013.
 
 ## Format of `docs/data/<year>.json`
 
@@ -70,9 +75,9 @@ lines up with `years`. All numbers are copied or summed from the per-year files,
 
 ```json
 {
-  "years": [2012, …, 2023],
+  "years": [2013, …, 2023],
   "world": {
-    "production":          {"unit": "kb/d",  "values": [76691.825, …]},
+    "production":          {"unit": "kb/d",  "values": [76817.113, …]},
     "consumption":         {"unit": "kb/d",  "values": […]},
     "refining_capacity":   {"unit": "kt/yr", "values": […]},
     "refining_throughput": {"unit": "kt/yr", "values": […]}
@@ -102,7 +107,7 @@ lines up with `years`. All numbers are copied or summed from the per-year files,
 | `trade.products` | BACI HS 271000, petroleum oils other than crude: all of HS 2710, which in BACI HS12 also includes a small amount of waste oils | tonnes, thousand USD |
 
 UNdata's throughput sometimes exceeds its capacity. India, for example, ran at 101–111% of capacity in
-2012–2019, 2022 and 2023 (111% in 2023). Overall, 38 country-years across 15 countries exceed 100%. We haven't
+2013–2019, 2022 and 2023 (111% in 2023). Overall, 32 country-years across 14 countries exceed 100%. We haven't
 established why; the pipeline passes both through unchanged.
 
 **Units are not consistent across layers.** Production and consumption are volumes (kb/d), refining and trade
@@ -143,7 +148,7 @@ so nothing is left over.
 
 ### Trade
 
-- Country to country, for **every year 2012–2023**, crude and products separately.
+- Country to country, for **every year 2013–2023**, crude and products separately.
 - Flows within a country don't exist in the data. Flows within a region (for example, between EU countries)
   are included as ordinary country-to-country flows.
 - BACI reconciles what exporters and importers report, so a flow appears once, not once per reporter.
@@ -153,11 +158,11 @@ so nothing is left over.
   value hold ~15% of 2023 crude tonnes and ~16% of 2020 product tonnes, but ~0% of 2015 crude tonnes. The pipeline passes
   BACI's numbers through unchanged. `kusd` is more reliable than `tonnes`, but not always (next item). **Sizing graph edges by
   `tonnes` will mislead**, so size them by `kusd`.
-- **Some BACI values are implausible too, and flows come and go between years.** In 2012, crude SAU→TWN is
-  US$187.1 bn (228 Mt) and ARE→TWN US$89.6 bn: Taiwan's crude imports add up to US$278 bn that year, against
-  US$16–51 bn in every other year. That alone puts about US$240 bn into the 2012 world crude trade total
-  (`summary.json`: US$1.78 tn, the series' peak) and sets `trade.crude.max_flow`. Separately, a large flow can be
-  missing for a whole year: crude SAU→JPN is US$50/46/44 bn in 2012–14, absent in 2015 and US$18 bn in 2016. An absent flow is
-  not a measured zero, so year-to-year changes in a single flow's share of trade can be reporting gaps.
+- **Some BACI values are implausible too, and flows come and go between years.** BACI's 2012 crude flows to
+  Taiwan are far too large (see [Years](#years)), which is why the series starts in 2013. In 2013–2023 the largest
+  single crude flow is CAN→USA every year, and the largest product flow is USA→MEX (US$39 bn in 2022). A large
+  flow can also be missing for a whole year: crude SAU→JPN is US$44 bn in 2014, absent in 2015 and US$18 bn in
+  2016. An absent flow is not a measured zero, so year-to-year changes in a single flow's share of trade can be
+  reporting gaps.
 - Trade isn't linked to production or consumption: imports minus exports won't exactly equal consumption
   minus production (stocks, bunkers, re-exports and differences in definitions all play a part).

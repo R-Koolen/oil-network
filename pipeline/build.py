@@ -18,7 +18,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "docs" / "data"
-YEARS = range(2012, 2024)  # every layer has data for these years; UNdata 2024 lacks China, India and most others
+# Every layer has data for these years. UNdata 2024 lacks China, India and most others. BACI 2012 has implausible
+# crude imports to Taiwan (US$278 bn, against US$16-51 bn in every other year), so the series starts in 2013.
+YEARS = range(2013, 2024)
 
 EIA_SERIES = {"production": "57-1", "consumption": "5-2"}  # crude oil incl. lease condensate; petroleum and other liquids
 # EIA areas that are countries/territories but have no 3-letter code. Every other non-3-letter code is an aggregate.

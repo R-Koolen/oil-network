@@ -28,7 +28,6 @@ const COLUMNS = [
 
 const int = d3.format(",.0f");
 const pct = d3.format(".0%");
-const pct1 = d3.format(".1%");
 
 const cache = new Map(); // year -> Promise of that year's data, so each file is fetched once
 let summary = null;
