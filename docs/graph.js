@@ -3,11 +3,12 @@
 // The oil network for the year picked on the slider. Calculations are in compute.js (OilCompute).
 // Everything is loaded from this site; styling lives in style.css (CSP allows no inline style).
 
-const { topFlows, layoutColumn, biggestMoves } = OilCompute;
+const { topFlows, layoutColumn, biggestMoves, parseHash, formatHash, createSelection } = OilCompute;
 
 const TOP_CRUDE_FLOWS = 60;
 const TOP_PRODUCT_FLOWS = 60;
 const MOVES_SHOWN = 3;
+const PARTNERS_SHOWN = 5;
 
 const WIDTH = 1100;
 const NODE_W = 12;
@@ -33,6 +34,11 @@ const cache = new Map(); // year -> Promise of that year's data, so each file is
 let summary = null;
 let years = [];
 let latestRequest = 0;
+
+const selection = createSelection(); // the selected country id, or null
+let countriesFile = null; // docs/data/countries.json once loaded; null until then, false if it failed
+let countriesPromise = null;
+let current = null; // what is on screen: {data, prev, drawn}
 
 async function getJson(path) {
   const r = await fetch(path);
@@ -149,6 +155,7 @@ function drawGraph(data) {
       .attr("text-anchor", i === 0 ? "end" : "start")
       .text((d) => (d.value === null ? `${d.name} (no data)` : d.name));
     node.append("title").text((d) => `${d.name}\n${c.title}: ${fmtValue(d.value, d.unit)}`);
+    node.on("click", (_, d) => selection.set(selection.get() === d.id ? null : d.id));
   });
 
   // Which flows live between which columns.
@@ -166,6 +173,7 @@ function drawGraph(data) {
     `${columns[0].items.length} producers (${pct(share(columns[0]))} of world production), ` +
     `${columns[1].items.length} refiners or importers (${pct(share(columns[1]))} of reported throughput), ` +
     `${columns[2].items.length} consumers (${pct(share(columns[2]))} of world consumption).`);
+  return new Set(columns.flatMap((c) => c.items.map((d) => d.id)));
 }
 
 // Small multiples: world totals over all years, the chosen year marked. Each has its own unit and a zero baseline.
@@ -176,22 +184,10 @@ function drawWorld(year) {
     { title: "World crude oil trade value", unit: "nominal US$", values: summary.trade.crude.total, fmt: fmtUsdShort },
     { title: "World petroleum products trade value", unit: "nominal US$", values: summary.trade.products.total, fmt: fmtUsdShort },
   ];
-  const W = 260, H = 120, pad = { l: 8, r: 8, t: 8, b: 20 };
-  const x = d3.scaleLinear().domain(d3.extent(years)).range([pad.l, W - pad.r]);
   const root = d3.select("#world").selectAll("figure").data(charts).join("figure");
   root.append("figcaption").text((c) => `${c.title} (${c.unit})`);
-  const svg = root.append("svg").attr("viewBox", `0 0 ${W} ${H}`).attr("class", "mini");
-  svg.each(function (c) {
-    const g = d3.select(this);
-    const y = d3.scaleLinear().domain([0, d3.max(c.values)]).range([H - pad.b, pad.t]);
-    g.append("line").attr("class", "axis").attr("x1", pad.l).attr("x2", W - pad.r).attr("y1", y(0)).attr("y2", y(0));
-    g.append("path").attr("class", "series")
-      .attr("d", d3.line().x((_, i) => x(years[i])).y((v) => y(v))(c.values));
-    const i = years.indexOf(year);
-    g.append("line").attr("class", "marker").attr("x1", x(year)).attr("x2", x(year)).attr("y1", pad.t).attr("y2", y(0));
-    g.append("circle").attr("class", "marker").attr("cx", x(year)).attr("cy", y(c.values[i])).attr("r", 3.5);
-    g.append("text").attr("class", "tick").attr("x", pad.l).attr("y", H - 6).text(years[0]);
-    g.append("text").attr("class", "tick").attr("x", W - pad.r).attr("y", H - 6).attr("text-anchor", "end").text(years[years.length - 1]);
+  root.append("svg").each(function (c) {
+    OilPanel.lineChart(d3.select(this), years, [{ values: c.values, cls: "a" }], year, c.fmt);
   });
   root.append("p").attr("class", "chosen").text((c) => `${year}: ${c.fmt(c.values[years.indexOf(year)])}`);
 }
@@ -222,13 +218,75 @@ function drawMoves(data, prev) {
   }
 }
 
+function highlight() {
+  const sel = selection.get();
+  d3.selectAll("#chart .node").classed("selected", (d) => d.id === sel);
+  d3.selectAll("#chart .link")
+    .classed("dim", (f) => sel !== null && f.from !== sel && f.to !== sel)
+    .classed("focus", (f) => sel !== null && (f.from === sel || f.to === sel));
+}
+
+function drawPanel() {
+  const root = d3.select("#country-panel");
+  const sel = selection.get();
+  root.attr("hidden", sel === null || current === null ? "" : null);
+  if (sel === null || current === null) {
+    root.selectAll("*").remove();
+    return;
+  }
+  const names = new Map(current.data.nodes.map((n) => [n.id, n.name]));
+  const entry = countriesFile ? countriesFile.countries[sel] : countriesFile;
+  OilPanel.drawCountry(root, {
+    id: sel,
+    name: names.get(sel) || (entry && entry.name) || sel,
+    year: current.data.year,
+    years,
+    series: entry, // null while the file loads, false if it could not be loaded, undefined if it lacks this country
+    data: current.data,
+    drawn: current.drawn.has(sel),
+    partnerCount: PARTNERS_SHOWN,
+  });
+}
+
+function syncHash() {
+  if (current) history.replaceState(null, "", formatHash(current.data.year, selection.get()));
+}
+
+function syncSelect() {
+  d3.select("#country").property("value", selection.get() ?? "");
+  d3.select("#clear").attr("hidden", selection.get() === null ? "" : null);
+}
+
+function ensureCountries() {
+  if (!countriesPromise) {
+    countriesPromise = getJson("data/countries.json").then((file) => {
+      countriesFile = file;
+      const list = Object.entries(file.countries).sort((a, b) => a[1].name.localeCompare(b[1].name));
+      d3.select("#country").attr("disabled", null).selectAll("option.country").data(list).join("option")
+        .attr("class", "country").attr("value", ([id]) => id).text(([, c]) => c.name);
+      if (selection.get() !== null && !(selection.get() in file.countries)) selection.set(null); // a stale link
+      syncSelect();
+      drawPanel();
+    }).catch(() => {
+      countriesFile = false;
+      d3.select("#country").attr("hidden", "");
+      drawPanel();
+    });
+  }
+  return countriesPromise;
+}
+
 function render(data, prev) {
   d3.select("#error").attr("hidden", "");
   for (const id of ["#chart", "#coverage", "#world", "#moves"]) d3.select(id).selectAll("*").remove();
   d3.select("#subtitle").text(`${data.year}: crude oil production → refining → consumption, with trade flows between countries.`);
-  drawGraph(data);
+  current = { data, prev, drawn: drawGraph(data) };
   drawWorld(data.year);
   drawMoves(data, prev);
+  highlight();
+  drawPanel();
+  syncHash();
+  ensureCountries(); // after the first draw, not before
 }
 
 async function show(year) {
@@ -242,15 +300,9 @@ async function show(year) {
     ]);
     if (request !== latestRequest) return; // the slider moved on
     render(data, prev);
-    history.replaceState(null, "", `#${year}`);
   } catch (e) {
     if (request === latestRequest) fail(`Could not load the data for ${year} (${e.message}).`);
   }
-}
-
-function yearFromHash() {
-  const y = Number(location.hash.slice(1));
-  return years.includes(y) ? y : null;
 }
 
 async function main() {
@@ -263,11 +315,22 @@ async function main() {
   const slider = d3.select("#year")
     .attr("min", d3.min(years)).attr("max", d3.max(years)).attr("step", 1).attr("disabled", null); // enabled once the data is there
   slider.on("input", () => show(Number(slider.property("value"))));
-  window.addEventListener("hashchange", () => {
-    const y = yearFromHash();
-    if (y !== null) show(y);
+  d3.select("#country").on("change", function () { selection.set(this.value || null); });
+  d3.select("#clear").on("click", () => selection.set(null));
+  selection.subscribe(() => {
+    highlight();
+    drawPanel();
+    syncSelect();
+    syncHash();
   });
-  show(yearFromHash() ?? d3.max(years));
+  const start = parseHash(location.hash, years);
+  window.addEventListener("hashchange", () => {
+    const h = parseHash(location.hash, years);
+    selection.set(h.country && (!countriesFile || h.country in countriesFile.countries) ? h.country : null);
+    if (h.year !== null && (!current || h.year !== current.data.year)) show(h.year);
+  });
+  selection.set(start.country);
+  show(start.year ?? d3.max(years));
 }
 
 main();

@@ -43,6 +43,44 @@ class ComputeMatchesPython(unittest.TestCase):
             self.assertAlmostEqual(got["top"][group]["share"], sum(f["kusd"] for f in flows) / ct, places=9)
             self.assertEqual(sorted(map(tuple, got["top"][group]["shown"])), sorted((f["from"], f["to"]) for f in flows))
 
+    def check_partners(self, year):
+        cur, got = load(year), node_result(year)
+        for cid, groups in got["partners"].items():
+            for group, g in groups.items():
+                flows = cur["trade"][group]
+                for side, own, other in (("imports", "to", "from"), ("exports", "from", "to")):
+                    rows = sorted(((f[other], f["kusd"]) for f in flows if f[own] == cid), key=lambda r: (-r[1], r[0]))
+                    total = sum(k for _, k in rows)
+                    s = g[side]
+                    self.assertEqual(s["count"], len(rows), f"{year} {cid} {group} {side}")
+                    self.assertAlmostEqual(s["total"], total, places=3)
+                    self.assertEqual([(t["id"], t["kusd"]) for t in s["top"]], rows[:5])
+                    for t in s["top"]:
+                        self.assertAlmostEqual(t["share"], t["kusd"] / total, places=9)
+                self.assertAlmostEqual(g["net"], g["exports"]["total"] - g["imports"]["total"], places=3)
+
+    def test_partners_latest_year(self):
+        self.check_partners(YEARS[-1])
+
+    def test_partners_a_year_with_a_swing(self):
+        self.check_partners(2020)
+
+    def test_hash_round_trip(self):
+        js = ("const C=require('./docs/compute.js');const y=[2013,2020,2023];"
+              "console.log(JSON.stringify([C.parseHash('#2020/usa',y),C.parseHash('#2020',y),C.parseHash('#1999/USA',y),"
+              "C.parseHash('#2020/',y),C.parseHash('',y),C.parseHash('#2020/<b>',y),C.formatHash(2020,'USA'),C.formatHash(2013,null)]))")
+        out = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        self.assertEqual(out, [{"year": 2020, "country": "USA"}, {"year": 2020, "country": None},
+                               {"year": None, "country": "USA"}, {"year": None, "country": None},
+                               {"year": None, "country": None}, {"year": None, "country": None},
+                               "#2020/USA", "#2013"])
+
+    def test_selection_notifies_only_on_change(self):
+        js = ("const C=require('./docs/compute.js');const s=C.createSelection();let n=[];s.subscribe(v=>n.push(v));"
+              "s.set('USA');s.set('USA');s.set(null);s.set(null);console.log(JSON.stringify([n,s.get()]))")
+        out = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        self.assertEqual(out, [["USA", None], None])
+
     def test_latest_year(self):
         self.check_year(YEARS[-1])
 

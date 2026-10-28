@@ -37,7 +37,51 @@
     };
   }
 
-  const api = { topFlows, layoutColumn, biggestMoves };
+  // One country's trade in one group for one year: totals as importer and exporter, net (exports minus imports),
+  // and its n largest partners each way with their share of that total. kusd, as published by BACI.
+  function partners(flows, id, n) {
+    const side = (own, other) => {
+      const rows = flows.filter((f) => f[own] === id);
+      const total = sum(rows, (f) => f.kusd);
+      const top = rows.map((f) => ({ id: f[other], kusd: f.kusd, share: f.kusd / total }))
+        .sort((a, b) => b.kusd - a.kusd || a.id.localeCompare(b.id))
+        .slice(0, n);
+      return { total, count: rows.length, top };
+    };
+    const imports = side("to", "from");
+    const exports = side("from", "to");
+    return { imports, exports, net: exports.total - imports.total };
+  }
+
+  // "#2020/USA" -> {year: 2020, country: "USA"}; anything else gives null parts. The country is only checked for
+  // its shape here; the page checks it against the list of countries.
+  function parseHash(hash, years) {
+    const m = /^#?(\d{4})(?:\/([A-Za-z0-9]{2,5}))?$/.exec(hash || "");
+    if (!m) return { year: null, country: null };
+    const year = Number(m[1]);
+    return { year: years.includes(year) ? year : null, country: m[2] ? m[2].toUpperCase() : null };
+  }
+
+  function formatHash(year, country) {
+    return `#${year}${country ? `/${country}` : ""}`;
+  }
+
+  // The selected country as one piece of state; the graph and the panel (and later the map) subscribe to it.
+  function createSelection() {
+    let current = null;
+    const listeners = [];
+    return {
+      get: () => current,
+      set(id) {
+        if (id === current) return;
+        current = id;
+        listeners.forEach((fn) => fn(current));
+      },
+      subscribe: (fn) => listeners.push(fn),
+    };
+  }
+
+  const api = { topFlows, layoutColumn, biggestMoves, partners, parseHash, formatHash, createSelection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();
