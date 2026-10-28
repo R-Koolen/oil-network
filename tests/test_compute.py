@@ -65,6 +65,21 @@ class ComputeMatchesPython(unittest.TestCase):
     def test_partners_a_year_with_a_swing(self):
         self.check_partners(2020)
 
+    def test_over_capacity_years_match_the_data(self):
+        countries = json.loads((DATA / "countries.json").read_text(encoding="utf-8"))
+        js = ("const C=require('./docs/compute.js');const d=require('./docs/data/countries.json');"
+              "const out={};for(const [id,c] of Object.entries(d.countries)){const o=C.overCapacityYears("
+              "c.refining_throughput,c.refining_capacity,d.years);if(o.length)out[id]=o;}console.log(JSON.stringify(out))")
+        got = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        want = {}
+        for a, c in countries["countries"].items():
+            ys = [y for y, t, k in zip(countries["years"], c["refining_throughput"], c["refining_capacity"])
+                  if t is not None and k is not None and t > k]
+            if ys:
+                want[a] = ys
+        self.assertEqual(got, want)
+        self.assertEqual(len(got), 14)  # the countries the README's "exceed 100%" statement counts
+
     def test_hash_round_trip(self):
         js = ("const C=require('./docs/compute.js');const y=[2013,2020,2023];"
               "console.log(JSON.stringify([C.parseHash('#2020/usa',y),C.parseHash('#2020',y),C.parseHash('#1999/USA',y),"

@@ -53,6 +53,11 @@
     return { imports, exports, net: exports.total - imports.total };
   }
 
+  // The years in which a country's refining throughput is above its capacity (both must have a number).
+  function overCapacityYears(throughput, capacity, years) {
+    return years.filter((_, i) => throughput[i] !== null && capacity[i] !== null && throughput[i] > capacity[i]);
+  }
+
   // "#2020/USA" -> {year: 2020, country: "USA"}; anything else gives null parts. The country is only checked for
   // its shape here; the page checks it against the list of countries.
   function parseHash(hash, years) {
@@ -81,7 +86,7 @@
     };
   }
 
-  const api = { topFlows, layoutColumn, biggestMoves, partners, parseHash, formatHash, createSelection };
+  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, parseHash, formatHash, createSelection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();

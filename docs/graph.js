@@ -328,6 +328,7 @@ async function main() {
     const h = parseHash(location.hash, years);
     selection.set(h.country && (!countriesFile || h.country in countriesFile.countries) ? h.country : null);
     if (h.year !== null && (!current || h.year !== current.data.year)) show(h.year);
+    else syncHash(); // an unknown year: put the address back to what is shown
   });
   selection.set(start.country);
   show(start.year ?? d3.max(years));

@@ -5,13 +5,21 @@
 (function () {
   const int = d3.format(",.0f");
   const pct = d3.format(".0%");
-  const usd = (kusd) => `US$${d3.format(",.1f")(kusd / 1e6)} billion`;
+  // kusd is thousand US$: 1e6 of it is a billion. Smaller values in millions or thousands, so they don't print as 0.0 billion.
+  const usd = (kusd) => {
+    if (kusd >= 1e6 || kusd === 0) return `US$${d3.format(",.1f")(kusd / 1e6)} billion`;
+    if (kusd >= 1e3) return `US$${d3.format(",.1f")(kusd / 1e3)} million`;
+    if (kusd >= 1) return `US$${d3.format(",.0f")(kusd)} thousand`;
+    return `US$${d3.format(",.0f")(kusd * 1000)}`;
+  };
+  const flows = (n) => `${n} ${n === 1 ? "flow" : "flows"}`;
   const signedUsd = (kusd) => `${kusd < 0 ? "−" : "+"}${usd(Math.abs(kusd))}`;
 
   // Source gaps worth saying out loud where they apply: country id -> why its numbers need care.
   const CAVEATS = {
     TWN: "BACI's “Other Asia, nes” is counted as Taiwan here and seems to include trade that is not Taiwan's. " +
-      "For example, Iran appears as its largest crude supplier in 2020–2022, under sanctions.",
+      "For example, Iran appears as its largest crude supplier in 2020–2022, under sanctions, and Russia as its " +
+      "largest petroleum products supplier in 2023.",
   };
 
   const W = 260, H = 120, PAD = { l: 8, r: 8, t: 16, b: 20 };
@@ -65,8 +73,8 @@
         continue;
       }
       block.append("p").attr("class", "lead").text(
-        `${label}: imports ${usd(t.imports.total)} (${t.imports.count} flows), exports ${usd(t.exports.total)} ` +
-        `(${t.exports.count} flows), net exports ${signedUsd(t.net)}.`);
+        `${label}: imports ${usd(t.imports.total)} (${flows(t.imports.count)}), exports ${usd(t.exports.total)} ` +
+        `(${flows(t.exports.count)}), net exports ${signedUsd(t.net)}.`);
       const grid = block.append("div").attr("class", "partners");
       list(grid, `Largest ${from}`, t.imports.top, names);
       list(grid, `Largest ${to}`, t.exports.top, names);
@@ -87,6 +95,11 @@
         "crude and product flows shown (the page says how many above the graph).");
     }
     if (CAVEATS[ctx.id]) root.append("p").attr("class", "notice").text(CAVEATS[ctx.id]);
+    const over = ctx.series ? OilCompute.overCapacityYears(ctx.series.refining_throughput, ctx.series.refining_capacity, ctx.years) : [];
+    if (over.length) {
+      root.append("p").attr("class", "notice").text(
+        `The source reports refining throughput above capacity in ${over.join(", ")}; we haven't established why.`);
+    }
 
     const charts = root.append("div").attr("class", "country-charts");
     const s = ctx.series;
@@ -95,6 +108,8 @@
     } else {
       const i = ctx.years.indexOf(ctx.year);
       const at = (values, fmt) => (values[i] === null ? "no data" : fmt(values[i]));
+      // BACI lists only non-zero flows, so for trade both 0 and a missing year mean "no flow listed".
+      const flow = (values) => (values[i] === null || values[i] === 0 ? "none listed" : usd(values[i]));
       const kbd = (v) => `${int(v)} kb/d`, kty = (v) => `${int(v)} kt/yr`;
       const specs = [
         { title: "Crude oil production (kb/d)", lines: [{ values: s.production, cls: "a" }], fmt: kbd,
@@ -106,10 +121,10 @@
           chosen: () => at(s.consumption, kbd) },
         { title: "Crude oil trade (nominal US$): solid imports, dashed exports",
           lines: [{ values: s.crude.imports, cls: "a" }, { values: s.crude.exports, cls: "b" }], fmt: (v) => usd(v),
-          chosen: () => `imports ${at(s.crude.imports, usd)}, exports ${at(s.crude.exports, usd)}` },
+          chosen: () => `imports ${flow(s.crude.imports)}, exports ${flow(s.crude.exports)}` },
         { title: "Petroleum products trade (nominal US$): solid imports, dashed exports",
           lines: [{ values: s.products.imports, cls: "a" }, { values: s.products.exports, cls: "b" }], fmt: (v) => usd(v),
-          chosen: () => `imports ${at(s.products.imports, usd)}, exports ${at(s.products.exports, usd)}` },
+          chosen: () => `imports ${flow(s.products.imports)}, exports ${flow(s.products.exports)}` },
       ];
       for (const spec of specs) {
         const { fig, svg } = figure(charts, spec.title);

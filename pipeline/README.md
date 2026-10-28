@@ -78,13 +78,13 @@ lines up with `years`. All numbers are copied or summed from the per-year files,
   "years": [2013, …, 2023],
   "world": {
     "production":          {"unit": "kb/d",  "values": [76817.113, …]},
-    "consumption":         {"unit": "kb/d",  "values": […]},
-    "refining_capacity":   {"unit": "kt/yr", "values": […]},
-    "refining_throughput": {"unit": "kt/yr", "values": […]}
+    "consumption":         {"unit": "kb/d",  "values": [92496.965, …]},
+    "refining_capacity":   {"unit": "kt/yr", "values": [4735453.0, …]},
+    "refining_throughput": {"unit": "kt/yr", "values": [3710237.0, …]}
   },
   "trade": {
-    "crude":    {"unit": "kusd", "total": [1.2e9, …], "max_flow": 1.1e8},
-    "products": {"unit": "kusd", "total": […],        "max_flow": …}
+    "crude":    {"unit": "kusd", "total": [1586868249.966, …], "max_flow": 117673227.677},
+    "products": {"unit": "kusd", "total": […],               "max_flow": 38789379.193}
   }
 }
 ```
@@ -107,19 +107,19 @@ files, so they match them exactly.
   "countries": {
     "USA": {
       "name": "United States",
-      "production":          [10089.7, …],
-      "consumption":         [19017.8, …],
-      "refining_capacity":   [null, …],
-      "refining_throughput": [3.8e6, …],
-      "crude":    {"imports": [2.1e8, …], "exports": [4.0e7, …]},
+      "production":          [7494.118, …],
+      "consumption":         [18966.518, …],
+      "refining_capacity":   [888678.0, …],
+      "refining_throughput": [755271.0, …],
+      "crude":    {"imports": [277067614.691, …], "exports": [5086951.249, …]},
       "products": {"imports": […], "exports": […]}
     }
   }
 }
 ```
 
-- `countries`: every area that has a node in any year file (id as in the year files), sorted by id. `name` is the
-  latest year's.
+- `countries`: every area that has a node in any year file (id as in the year files, 240 of them, including EIA's
+  `NLDA` and `USIQ`), sorted by id. `name` is the latest year's.
 - The layer arrays line up with `years` and use the layer's unit (kb/d, kt/yr). `null` means the source has no
   number that year, as in the year files; `0` means the source reported zero.
 - `crude` and `products`: `imports` and `exports` are the sum of `kusd` (thousand **nominal** US dollars) over
