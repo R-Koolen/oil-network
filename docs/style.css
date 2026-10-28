@@ -188,7 +188,7 @@ details.about[open] { padding-bottom: 8px; }
 .hatch-line { stroke: var(--zero-hatch); stroke-width: 1; }
 #map .country:not(.inert):hover { stroke: var(--fg); stroke-width: 0.8; }
 #map .country.selected { stroke: var(--fg); stroke-width: 1.6; }
-#map .link { fill: none; stroke-opacity: 0.38; pointer-events: stroke; }
+#map .link { fill: none; stroke-opacity: 0.38; pointer-events: stroke; vector-effect: non-scaling-stroke; } /* the map is scaled to its column; line width stays in screen pixels, the same as the graph's */
 #map .link.dim { stroke-opacity: 0.06; }
 #map .link.focus { stroke-opacity: 0.85; }
 #map .end { fill: var(--fg); stroke: var(--bg); stroke-width: 0.6; cursor: pointer; }

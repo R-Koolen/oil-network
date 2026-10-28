@@ -28,11 +28,11 @@
     svg.append("text").attr("class", "head").attr("x", x0).attr("y", 10).text(`${shade.label} (${shade.unit}), same scale in every year`);
     svg.append("rect").attr("x", x0).attr("y", 17).attr("width", bar).attr("height", 10).attr("fill", "url(#shade-ramp)");
     const pos = (v) => x0 + bar * Math.sqrt(v / shade.max);
-    const ticks = [];
+    const ticks = [0];
     for (let t = Math.pow(10, Math.ceil(Math.log10(shade.max / 300))); t <= shade.max; t *= 10) ticks.push(t);
     ticks.forEach((v) => {
       svg.append("line").attr("class", "axis").attr("x1", pos(v)).attr("x2", pos(v)).attr("y1", 27).attr("y2", 31);
-      svg.append("text").attr("class", "tick").attr("x", pos(v)).attr("y", 42).attr("text-anchor", "middle").text(d3.format(",")(v));
+      svg.append("text").attr("class", "tick").attr("x", pos(v)).attr("y", 42).attr("text-anchor", v === 0 ? "start" : "middle").text(d3.format(",")(v));
     });
     [["country zero", "0"], ["country nodata", "no data"]].forEach(([cls, label], i) => {
       const x = x0 + bar + 24 + i * 70;
