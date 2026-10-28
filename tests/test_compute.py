@@ -118,6 +118,13 @@ class ComputeMatchesPython(unittest.TestCase):
         self.assertEqual(out["bad"], [])
         self.assertGreater(out["cross"], 0)  # the Pacific routes are in the data, so the cut is exercised
 
+    def test_lines_are_spread_over_a_nodes_height_in_the_order_of_their_far_ends(self):
+        js = ("const C=require('./docs/compute.js');const a={y:100,h:40},b={y:0,h:10};"
+              "console.log(JSON.stringify(C.spreadEnds([{node:a,other:300},{node:b,other:5},{node:a,other:50},{node:a,other:200},{node:a,other:50}])))")
+        ys = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        # node a (y 100, h 40) has four ends, so slots at 105, 115, 125, 135 by far end 50, 50 (tie: input order), 200, 300
+        self.assertEqual(ys, [135, 5, 105, 125, 115])
+
     def test_hash_round_trip(self):
         js = ("const C=require('./docs/compute.js');const y=[2013,2020,2023];"
               "console.log(JSON.stringify([C.parseHash('#2020/usa',y),C.parseHash('#2020',y),C.parseHash('#1999/USA',y),"

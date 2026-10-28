@@ -3,28 +3,31 @@
 // The oil network for the year picked on the slider. Calculations are in compute.js (OilCompute).
 // Everything is loaded from this site; styling lives in style.css (CSP allows no inline style).
 
-const { topFlows, layoutColumn, biggestMoves, parseHash, formatHash, createSelection } = OilCompute;
+const { topFlows, layoutColumn, spreadEnds, biggestMoves, parseHash, formatHash, createSelection } = OilCompute;
 
 const TOP_CRUDE_FLOWS = 60;
 const TOP_PRODUCT_FLOWS = 60;
 const MOVES_SHOWN = 3;
 const PARTNERS_SHOWN = 5;
 
-const WIDTH = 760;
+// The graph is drawn at the width it gets (no scaling, so labels keep their size). On a phone it shows one stage at
+// a time, two columns, chosen with the "stage" buttons.
 const NODE_W = 12;
-const COL_X = [135, 355, 575];
+const NARROW = window.matchMedia("(max-width: 700px)");
+let stage = "crude";
 const TOP = 70;
 const GAP = 4;
 const MIN_NODE_H = 10;
 // Node height = value * k, with k fixed per column: VALUE_H pixels for the biggest world total in any year.
 // Shown countries are always a part of the world, so a column fits in any year.
 const VALUE_H = 600;
-const MIN_PLOT_H = 760;
+// Tall enough for every column in 2013–2023 (the tallest is 726), so the graph keeps its height on the slider.
+const MIN_PLOT_H = 730;
 
 const COLUMNS = [
-  { layer: "production", title: "Crude oil production" },
-  { layer: "refining_throughput", title: "Refining (crude processed)", also: { layer: "refining_capacity", label: "Refining capacity" } },
-  { layer: "consumption", title: "Petroleum consumption" },
+  { layer: "production", title: "Crude oil production", short: "Production" },
+  { layer: "refining_throughput", title: "Refining (crude processed)", short: "Refining", also: { layer: "refining_capacity", label: "Refining capacity" } },
+  { layer: "consumption", title: "Petroleum consumption", short: "Consumption" },
 ];
 
 const int = d3.format(",.0f");
@@ -38,9 +41,9 @@ let lineWidth = null; // one US$ -> pixels scale for both groups, every year, gr
 
 // The map (map.json) loads after the first draw; `shadeMeasures` are the layers the map can be shaded by.
 const shadeMeasures = {
-  production: { label: "Crude oil production", unit: "kb/d" },
-  consumption: { label: "Petroleum consumption", unit: "kb/d" },
-  refining_throughput: { label: "Refining throughput", unit: "kt/yr" },
+  production: { label: "Crude oil production", unit: "kb/d", hue: "production" },
+  consumption: { label: "Petroleum consumption", unit: "kb/d", hue: "consumption" },
+  refining_throughput: { label: "Refining throughput", unit: "kt/yr", hue: "refining" },
 };
 let mapView = null;
 let mapData = null;
@@ -121,13 +124,17 @@ function drawGraph(data) {
     });
     items.sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.name.localeCompare(b.name));
     const k = VALUE_H / d3.max(summary.world[c.layer].values);
-    return { ...c, layer, items, x: COL_X[i], extent: layoutColumn(items, k, MIN_NODE_H, GAP) };
+    return { ...c, key: c.layer, layer, items, extent: layoutColumn(items, k, MIN_NODE_H, GAP) };
   });
+  const shown = !NARROW.matches ? [0, 1, 2] : stage === "crude" ? [0, 1] : [1, 2];
+  const W = Math.max(320, Math.floor(document.querySelector("#chart").clientWidth));
+  const L = NARROW.matches ? 128 : 150, R = NARROW.matches ? 112 : 160;
+  shown.forEach((ci, k) => { columns[ci].x = L + ((W - L - R - NODE_W) * k) / (shown.length - 1); });
   const plotH = Math.max(MIN_PLOT_H, d3.max(columns, (c) => c.extent));
   const byId = columns.map((c) => new Map(c.items.map((d) => [d.id, d])));
 
   const svg = d3.select("#chart").append("svg")
-    .attr("viewBox", `0 0 ${WIDTH} ${plotH + TOP + 10}`)
+    .attr("viewBox", `0 0 ${W} ${plotH + TOP + 10}`)
     .attr("role", "img")
     .attr("aria-label", `Oil network ${data.year}: production, refining and consumption with trade flows`);
   const plot = svg.append("g").attr("transform", `translate(0,${TOP})`);
@@ -136,24 +143,27 @@ function drawGraph(data) {
   const flows = [
     ...crude.shown.map((f) => ({ ...f, group: "crude", a: 0, b: 1 })),
     ...products.shown.map((f) => ({ ...f, group: "products", a: 1, b: 2 })),
-  ].sort((p, q) => q.kusd - p.kusd);
+  ].filter((f) => shown.includes(f.a) && shown.includes(f.b)).sort((p, q) => q.kusd - p.kusd);
+
+  const centre = (d) => d.y + d.h / 2;
+  const ends = (side) => flows.map((f) => {
+    const s = byId[f.a].get(f.from), t = byId[f.b].get(f.to);
+    return side === "out" ? { node: s, other: centre(t) } : { node: t, other: centre(s) };
+  });
+  const y0 = spreadEnds(ends("out")), y1 = spreadEnds(ends("in"));
 
   plot.append("g").selectAll("path").data(flows).join("path")
     .attr("class", (f) => `link ${f.group}`)
     .attr("stroke-width", (f) => lineWidth(f.kusd))
-    .attr("d", (f) => {
-      const s = byId[f.a].get(f.from);
-      const t = byId[f.b].get(f.to);
-      return link({ source: [columns[f.a].x + NODE_W, s.y + s.h / 2], target: [columns[f.b].x, t.y + t.h / 2] });
-    })
+    .attr("d", (f, i) => link({ source: [columns[f.a].x + NODE_W, y0[i]], target: [columns[f.b].x, y1[i]] }))
     .append("title")
     .text((f) => flowTitle(f, names));
 
-  columns.forEach((c, i) => {
-    svg.append("text").attr("class", "col-title").attr("x", c.x + NODE_W / 2).attr("y", 22).text(c.title);
+  shown.map((ci) => columns[ci]).forEach((c, i) => {
+    svg.append("text").attr("class", "col-title").attr("x", c.x + NODE_W / 2).attr("y", 22).text(NARROW.matches ? c.short : c.title);
     svg.append("text").attr("class", "col-unit").attr("x", c.x + NODE_W / 2).attr("y", 38).text(`node height: ${c.layer.unit}`);
     const node = plot.append("g").selectAll("g").data(c.items).join("g")
-      .attr("class", (d) => (d.value === null ? "node nodata" : "node"))
+      .attr("class", (d) => `node ${c.key}${d.value === null ? " nodata" : ""}`)
       .attr("transform", (d) => `translate(${c.x},${d.y})`);
     node.append("rect").attr("width", NODE_W).attr("height", (d) => d.h);
     node.append("text")
@@ -162,6 +172,17 @@ function drawGraph(data) {
       .attr("dy", "0.35em")
       .attr("text-anchor", i === 0 ? "end" : "start")
       .text((d) => (d.value === null ? `${d.name} (no data)` : d.name));
+    // Lines leave the middle column where its labels are: an opaque plate behind each label, as wide as the label is
+    // when selected (bold), keeps it readable whatever the line opacity. The labels are drawn after every line.
+    if (shown.length === 3 && i === 1) {
+      node.select("text").each(function () {
+        const label = d3.select(this).classed("measure-bold", true);
+        const b = this.getBBox();
+        label.classed("measure-bold", false);
+        d3.select(this.parentNode).insert("rect", "text").attr("class", "plate")
+          .attr("x", b.x - 2).attr("y", b.y).attr("width", b.width + 4).attr("height", b.height).attr("rx", 2);
+      });
+    }
     const also = c.also && data.layers[c.also.layer];
     node.append("title").text((d) => `${d.name}\n${c.title}: ${fmtValue(d.value, d.unit)}` +
       (also ? `\n${c.also.label}: ${fmtValue(also.values[d.id] ?? null, also.unit)}` : ""));
@@ -169,8 +190,8 @@ function drawGraph(data) {
   });
 
   // Which flows live between which columns.
-  [[0, 1, "Crude oil trade →"], [1, 2, "Petroleum products trade →"]].forEach(([a, b, text]) => {
-    svg.append("text").attr("class", "col-unit")
+  [[0, 1, "crude oil trade"], [1, 2, "petroleum products trade"]].filter(([a, b]) => shown.includes(a) && shown.includes(b)).forEach(([a, b, text]) => {
+    svg.append("text").attr("class", "col-flow")
       .attr("x", (columns[a].x + columns[b].x + NODE_W) / 2).attr("y", 58).text(text);
   });
 
@@ -188,6 +209,36 @@ function drawGraph(data) {
     flows: [...crude.shown.map((f) => ({ ...f, group: "crude" })), ...products.shown.map((f) => ({ ...f, group: "products" }))]
       .sort((p, q) => q.kusd - p.kusd),
   };
+}
+
+// The key under the graph: the two line colours, and line widths for a few US$ values on the shared scale.
+function drawKey() {
+  const narrow = NARROW.matches;
+  d3.select("#key").selectAll("*").remove();
+  const svg = d3.select("#key").append("svg").attr("viewBox", narrow ? "0 0 360 98" : "0 0 700 46")
+    .attr("role", "img").attr("aria-label", "Key: line colour is the kind of trade, line width is its value in US dollars");
+  [["crude", "Crude oil"], ["products", "Petroleum products"]].forEach(([cls, label], i) => {
+    const g = svg.append("g").attr("transform", `translate(0,${12 + i * 22})`);
+    g.append("line").attr("class", `swatch ${cls}`).attr("x1", 0).attr("x2", 26).attr("stroke-width", 5);
+    g.append("text").attr("x", 34).attr("dy", "0.35em").text(label);
+  });
+  const [hx, hy] = narrow ? [0, 56] : [190, 12];
+  svg.append("text").attr("class", "head").attr("x", hx).attr("y", hy).attr("dy", "0.35em").text("Line width: trade value, nominal US$");
+  [1e6, 1e7, 5e7, 1e8].forEach((kusd, i) => { // thousand US$: 1e6 is a billion
+    const x = narrow ? (i % 2) * 180 : 190 + i * 128, y = narrow ? 76 + Math.floor(i / 2) * 18 : 34;
+    svg.append("line").attr("class", "swatch width").attr("x1", x).attr("x2", x + 30).attr("y1", y).attr("y2", y)
+      .attr("stroke-width", lineWidth(kusd));
+    svg.append("text").attr("x", x + 36).attr("y", y).attr("dy", "0.35em").text(`US$${d3.format(",")(kusd / 1e6)} billion`);
+  });
+}
+
+// Year labels under the slider. The slider's track is 16 px wider than this row, so 0% and 100% sit under the thumb.
+function drawTicks() {
+  const svg = d3.select("#year-ticks").append("svg");
+  const g = svg.selectAll("g").data(years).join("g");
+  const x = (y) => `${(100 * (y - years[0])) / (years[years.length - 1] - years[0])}%`;
+  g.append("line").attr("x1", x).attr("x2", x).attr("y1", 0).attr("y2", 3);
+  g.append("text").attr("x", x).attr("y", 14).text((y) => y);
 }
 
 // Small multiples: world totals over all years, the chosen year marked. Each has its own unit and a zero baseline.
@@ -244,9 +295,12 @@ function highlight() {
 function drawPanel() {
   const root = d3.select("#country-panel");
   const sel = selection.get();
-  root.attr("hidden", sel === null || current === null ? "" : null);
+  root.attr("hidden", current === null ? "" : null);
   if (sel === null || current === null) {
     root.selectAll("*").remove();
+    const p = root.append("p").attr("class", "empty");
+    p.append("strong").text("Pick a country");
+    p.append("span").text("Click it in the graph or on the map, or choose it from the list, to see its history and its trade partners.");
     return;
   }
   const names = new Map(current.data.nodes.map((n) => [n.id, n.name]));
@@ -295,8 +349,8 @@ function ensureCountries() {
 function render(data, prev) {
   d3.select("#error").attr("hidden", "");
   for (const id of ["#chart", "#coverage", "#world", "#moves"]) d3.select(id).selectAll("*").remove();
-  d3.select("#subtitle").text(`${data.year}: crude oil production → refining → consumption, with trade flows between countries.`);
   const graph = drawGraph(data);
+  drawKey();
   current = { data, prev, drawn: graph.drawn, flows: graph.flows };
   drawWorld(data.year);
   drawMoves(data, prev);
@@ -304,6 +358,7 @@ function render(data, prev) {
   highlight();
   drawPanel();
   syncHash();
+  d3.selectAll("#year-ticks text").classed("on", (y) => y === data.year);
   ensureCountries(); // after the first draw, not before
   ensureMap();
 }
@@ -371,7 +426,25 @@ async function main() {
   lineWidth = d3.scaleSqrt() // one US$ width scale for both groups and every year
     .domain([0, d3.max(Object.values(summary.trade), (g) => g.max_flow)])
     .range([0.75, 14]);
+  d3.select("#subtitle").text(
+    "Where crude oil is produced, where it is refined and where petroleum is used, " +
+    `with the largest trade flows between countries, ${years[0]}–${years[years.length - 1]}.`);
+  drawTicks();
   for (const id of ["#map-flows", "#map-shade", "#map-measure"]) d3.select(id).on("change", updateMap);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateMap); // shading colours follow the theme
+  // The graph is drawn for its width: draw it again when that changes, or when the phone's stage buttons change.
+  let lastW = document.querySelector("#chart").clientWidth, timer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const w = document.querySelector("#chart").clientWidth;
+      if (w !== lastW && current) { lastW = w; render(current.data, current.prev); }
+    }, 150);
+  });
+  d3.selectAll("#stage input").on("change", function () {
+    stage = this.value;
+    if (current) render(current.data, current.prev);
+  });
   const slider = d3.select("#year")
     .attr("min", d3.min(years)).attr("max", d3.max(years)).attr("step", 1).attr("disabled", null); // enabled once the data is there
   slider.on("input", () => show(Number(slider.property("value"))));

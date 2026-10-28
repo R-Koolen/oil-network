@@ -25,6 +25,23 @@
     return items.length ? y - gap : 0;
   }
 
+  // Where lines meet a node: the lines at one side of one node are spread evenly over its height, in the order of
+  // the nodes at their other end, so they leave without crossing. `ends` is [{node: {y, h}, other: y of the far end}];
+  // returns the y of each end, in the same order.
+  function spreadEnds(ends) {
+    const groups = new Map();
+    ends.forEach((e, i) => {
+      if (!groups.has(e.node)) groups.set(e.node, []);
+      groups.get(e.node).push(i);
+    });
+    const ys = new Array(ends.length);
+    for (const [node, idx] of groups) {
+      idx.sort((a, b) => ends[a].other - ends[b].other || a - b);
+      idx.forEach((i, k) => { ys[i] = node.y + (node.h * (k + 0.5)) / idx.length; });
+    }
+    return ys;
+  }
+
   // Largest rises and falls of a layer's country values between two years (kb/d change).
   // A country missing in either year is left out: no number is not zero.
   function biggestMoves(prevValues, curValues, names, n) {
@@ -136,7 +153,7 @@
     };
   }
 
-  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, wrapLine, formatShare, parseHash, formatHash, createSelection };
+  const api = { topFlows, layoutColumn, spreadEnds, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, wrapLine, formatShare, parseHash, formatHash, createSelection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();

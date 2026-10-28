@@ -20,7 +20,7 @@
       "For example, Iran appears as its largest crude supplier in 2020–2022, under sanctions.",
   };
 
-  const W = 260, H = 120, PAD = { l: 8, r: 8, t: 16, b: 20 };
+  const W = 260, H = 120, PAD = { l: 8, r: 8, t: 18, b: 20 };
 
   // Draws lines on a zero baseline into an svg selection. `lines` is [{values, cls}] aligned with `years`; a null value
   // is a gap, never zero. Every real point gets a dot, so a lone point between gaps still shows.
@@ -29,6 +29,8 @@
     const max = d3.max(lines, (l) => d3.max(l.values, (v) => v)) || 0;
     const y = d3.scaleLinear().domain([0, max || 1]).range([H - PAD.b, PAD.t]);
     svg.attr("viewBox", `0 0 ${W} ${H}`).attr("class", "mini");
+    // Two y ticks: zero on the baseline, and the largest value on a dotted line through the highest point.
+    if (max) svg.append("line").attr("class", "grid").attr("x1", PAD.l).attr("x2", W - PAD.r).attr("y1", y(max)).attr("y2", y(max));
     svg.append("line").attr("class", "axis").attr("x1", PAD.l).attr("x2", W - PAD.r).attr("y1", y(0)).attr("y2", y(0));
     const i = years.indexOf(year);
     svg.append("line").attr("class", "marker").attr("x1", x(year)).attr("x2", x(year)).attr("y1", PAD.t).attr("y2", y(0));
@@ -41,23 +43,36 @@
         svg.append("circle").attr("class", "marker").attr("cx", x(year)).attr("cy", y(l.values[i])).attr("r", 3.5);
       }
     }
-    svg.append("text").attr("class", "tick").attr("x", PAD.l).attr("y", 10).text(max ? `max ${fmtMax(max)}` : "");
+    svg.append("text").attr("class", "tick").attr("x", PAD.l).attr("y", PAD.t - 5).text(max ? `max ${fmtMax(max)}` : "");
+    svg.append("text").attr("class", "tick").attr("x", PAD.l - 3).attr("y", y(0)).attr("dy", "0.32em").attr("text-anchor", "end").text("0");
     svg.append("text").attr("class", "tick").attr("x", PAD.l).attr("y", H - 6).text(years[0]);
     svg.append("text").attr("class", "tick").attr("x", W - PAD.r).attr("y", H - 6).attr("text-anchor", "end").text(years[years.length - 1]);
   }
 
-  function figure(parent, caption) {
+  // keys: the line styles as words, e.g. [["a", "throughput"], ["b", "capacity"]]; one line needs none.
+  function figure(parent, caption, keys = []) {
     const fig = parent.append("figure");
-    fig.append("figcaption").text(caption);
+    const cap = fig.append("figcaption").text(caption);
+    if (keys.length) cap.append("span").attr("class", "series-key").selectAll("span").data(keys).join("span")
+      .attr("class", ([cls]) => cls).text(([, label]) => label);
     return { fig, svg: fig.append("svg") };
   }
 
+  // One row per partner: "Name: share (US$)" as text, and a bar for the share under it.
   function list(parent, title, rows, names) {
     const div = parent.append("div");
     div.append("h4").text(title);
     const ul = div.append("ul");
     if (!rows.length) ul.append("li").text("none listed");
-    rows.forEach((r) => ul.append("li").text(`${names.get(r.id) || r.id}: ${OilCompute.formatShare(r.share)} (${usd(r.kusd)})`));
+    rows.forEach((r) => {
+      const li = ul.append("li");
+      li.append("span").attr("class", "who").text(`${names.get(r.id) || r.id}:`);
+      li.append("span").attr("class", "amount").text(` ${OilCompute.formatShare(r.share)} (${usd(r.kusd)})`);
+      const bar = li.append("svg").attr("class", "bar").attr("viewBox", "0 0 100 3").attr("preserveAspectRatio", "none")
+        .attr("aria-hidden", "true");
+      bar.append("rect").attr("width", 100).attr("height", 3);
+      bar.append("rect").attr("class", "share").attr("width", 100 * Math.min(1, r.share)).attr("height", 3);
+    });
   }
 
   function tradeSection(root, ctx) {
@@ -73,7 +88,7 @@
       block.append("p").attr("class", "lead").text(
         `${label}: imports ${usd(t.imports.total)} (${flows(t.imports.count)}), exports ${usd(t.exports.total)} ` +
         `(${flows(t.exports.count)}), net exports ${signedUsd(t.net)}.`);
-      const grid = block.append("div").attr("class", "partners");
+      const grid = block.append("div").attr("class", `partners ${group}`);
       list(grid, `Largest ${from}`, t.imports.top, names);
       list(grid, `Largest ${to}`, t.exports.top, names);
     }
@@ -86,7 +101,8 @@
   //       data (the year file), drawn (is the country in the graph), partnerCount}
   function drawCountry(root, ctx) {
     root.selectAll("*").remove();
-    root.append("h2").text(`${ctx.name}`);
+    const head = root.append("h2").text(ctx.name);
+    head.append("span").attr("class", "year").text(ctx.year);
     if (!ctx.drawn) {
       root.append("p").attr("class", "notice").text(
         `${ctx.name} is not drawn in the graph for ${ctx.year}: none of its flows is among the largest ` +
@@ -110,22 +126,22 @@
       const flow = (values) => (values[i] === null || values[i] === 0 ? "none listed" : usd(values[i]));
       const kbd = (v) => `${int(v)} kb/d`, kty = (v) => `${int(v)} kt/yr`;
       const specs = [
-        { title: "Crude oil production (kb/d)", lines: [{ values: s.production, cls: "a" }], fmt: kbd,
+        { title: "Crude oil production, kb/d", lines: [{ values: s.production, cls: "a" }], fmt: kbd,
           chosen: () => at(s.production, kbd) },
-        { title: "Refining (kt/yr): solid throughput, dashed capacity",
+        { title: "Refining, kt/yr", keys: [["a", "throughput"], ["b", "capacity"]],
           lines: [{ values: s.refining_throughput, cls: "a" }, { values: s.refining_capacity, cls: "b" }], fmt: kty,
           chosen: () => `throughput ${at(s.refining_throughput, kty)}, capacity ${at(s.refining_capacity, kty)}` },
-        { title: "Petroleum consumption (kb/d)", lines: [{ values: s.consumption, cls: "a" }], fmt: kbd,
+        { title: "Petroleum consumption, kb/d", lines: [{ values: s.consumption, cls: "a" }], fmt: kbd,
           chosen: () => at(s.consumption, kbd) },
-        { title: "Crude oil trade (nominal US$): solid imports, dashed exports",
+        { title: "Crude oil trade, nominal US$", keys: [["a", "imports"], ["b", "exports"]],
           lines: [{ values: s.crude.imports, cls: "a" }, { values: s.crude.exports, cls: "b" }], fmt: (v) => usd(v),
           chosen: () => `imports ${flow(s.crude.imports)}, exports ${flow(s.crude.exports)}` },
-        { title: "Petroleum products trade (nominal US$): solid imports, dashed exports",
+        { title: "Petroleum products trade, nominal US$", keys: [["a", "imports"], ["b", "exports"]],
           lines: [{ values: s.products.imports, cls: "a" }, { values: s.products.exports, cls: "b" }], fmt: (v) => usd(v),
           chosen: () => `imports ${flow(s.products.imports)}, exports ${flow(s.products.exports)}` },
       ];
       for (const spec of specs) {
-        const { fig, svg } = figure(charts, spec.title);
+        const { fig, svg } = figure(charts, spec.title, spec.keys);
         lineChart(svg, ctx.years, spec.lines, ctx.year, spec.fmt);
         fig.append("p").attr("class", "chosen").text(`${ctx.year}: ${spec.chosen()}`);
       }
