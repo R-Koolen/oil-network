@@ -101,15 +101,21 @@ class TestSite(unittest.TestCase):
                 self.assertNotRegex(text, r"@import", "css @import")
                 self.assertNotRegex(text, r"""\.attr\(\s*["']style["']""", "style attribute set from JS")
 
-    def test_vendored_d3_matches_its_record(self):
+    def test_vendored_libraries_match_their_records(self):
         vendor = DOCS / "vendor"
         record = (vendor / "README.md").read_text(encoding="utf-8")
-        recorded = re.search(r"sha256.*?`([0-9a-f]{64})`", record)
-        self.assertTrue(recorded, "no sha256 recorded in docs/vendor/README.md")
-        self.assertEqual(hashlib.sha256((vendor / "d3.min.js").read_bytes()).hexdigest(), recorded.group(1))
-        self.assertIn("7.9.0", record)
+        rows = re.findall(r"^\| `([\w.-]+\.js)` \|[^|]*\| ([\d.]+) \|[^|]*\| `([0-9a-f]{64})` \| `(LICENSE[\w-]*)`", record, re.M)
+        recorded = {name for name, *_ in rows}
+        # any new vendored script has to be recorded here too
+        self.assertEqual({p.name for p in vendor.glob("*.js")}, recorded)
+        self.assertTrue(rows)
+        for name, version, sha, licence in rows:
+            with self.subTest(file=name):
+                self.assertEqual(hashlib.sha256((vendor / name).read_bytes()).hexdigest(), sha)
+                self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+                self.assertTrue((vendor / licence).read_text(encoding="utf-8").strip(), f"{licence} is missing or empty")
         self.assertIn("https://", record)
-        self.assertTrue((vendor / "LICENSE").read_text(encoding="utf-8").strip(), "LICENSE is missing or empty")
+        self.assertTrue((vendor / "LICENSE-world-atlas").read_text(encoding="utf-8").strip())
 
     def test_attribution_is_shown_word_for_word(self):
         expected = attribution()

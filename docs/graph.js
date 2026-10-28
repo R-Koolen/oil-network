@@ -10,9 +10,9 @@ const TOP_PRODUCT_FLOWS = 60;
 const MOVES_SHOWN = 3;
 const PARTNERS_SHOWN = 5;
 
-const WIDTH = 1100;
+const WIDTH = 760;
 const NODE_W = 12;
-const COL_X = [170, 550, 930];
+const COL_X = [135, 355, 575];
 const TOP = 70;
 const GAP = 4;
 const MIN_NODE_H = 10;
@@ -34,6 +34,17 @@ const cache = new Map(); // year -> Promise of that year's data, so each file is
 let summary = null;
 let years = [];
 let latestRequest = 0;
+let lineWidth = null; // one US$ -> pixels scale for both groups, every year, graph and map
+
+// The map (map.json) loads after the first draw; `shadeMeasures` are the layers the map can be shaded by.
+const shadeMeasures = {
+  production: { label: "Crude oil production", unit: "kb/d" },
+  consumption: { label: "Petroleum consumption", unit: "kb/d" },
+  refining_throughput: { label: "Refining throughput", unit: "kt/yr" },
+};
+let mapView = null;
+let mapData = null;
+let mapPromise = null;
 
 const selection = createSelection(); // the selected country id, or null
 let countriesFile = null; // docs/data/countries.json once loaded; null until then, false if it failed
@@ -75,6 +86,12 @@ function fmtUsdShort(kusd) {
   return `US$${d3.format(",.1f")(kusd / 1e6)} billion`;
 }
 
+function flowTitle(f, names) {
+  const group = f.group === "crude" ? "Crude oil" : "Petroleum products";
+  return `${group}: ${names.get(f.from) || f.from} → ${names.get(f.to) || f.to}\n` +
+    `Value: ${fmtUsd(f.kusd)}\nQuantity: ${fmtTonnes(f.tonnes)}`;
+}
+
 function fmtTonnes(t) {
   return t === null ? "no quantity reported" : `${int(t)} t (unreliable, not used for line width)`;
 }
@@ -109,11 +126,6 @@ function drawGraph(data) {
   const plotH = Math.max(MIN_PLOT_H, d3.max(columns, (c) => c.extent));
   const byId = columns.map((c) => new Map(c.items.map((d) => [d.id, d])));
 
-  // One width scale for both groups and every year.
-  const width = d3.scaleSqrt()
-    .domain([0, d3.max(Object.values(summary.trade), (g) => g.max_flow)])
-    .range([0.75, 14]);
-
   const svg = d3.select("#chart").append("svg")
     .attr("viewBox", `0 0 ${WIDTH} ${plotH + TOP + 10}`)
     .attr("role", "img")
@@ -128,18 +140,14 @@ function drawGraph(data) {
 
   plot.append("g").selectAll("path").data(flows).join("path")
     .attr("class", (f) => `link ${f.group}`)
-    .attr("stroke-width", (f) => width(f.kusd))
+    .attr("stroke-width", (f) => lineWidth(f.kusd))
     .attr("d", (f) => {
       const s = byId[f.a].get(f.from);
       const t = byId[f.b].get(f.to);
       return link({ source: [columns[f.a].x + NODE_W, s.y + s.h / 2], target: [columns[f.b].x, t.y + t.h / 2] });
     })
     .append("title")
-    .text((f) => {
-      const group = f.group === "crude" ? "Crude oil" : "Petroleum products";
-      return `${group}: ${names.get(f.from) || f.from} → ${names.get(f.to) || f.to}\n` +
-        `Value: ${fmtUsd(f.kusd)}\nQuantity: ${fmtTonnes(f.tonnes)}`;
-    });
+    .text((f) => flowTitle(f, names));
 
   columns.forEach((c, i) => {
     svg.append("text").attr("class", "col-title").attr("x", c.x + NODE_W / 2).attr("y", 22).text(c.title);
@@ -161,7 +169,7 @@ function drawGraph(data) {
   // Which flows live between which columns.
   [[0, 1, "Crude oil trade →"], [1, 2, "Petroleum products trade →"]].forEach(([a, b, text]) => {
     svg.append("text").attr("class", "col-unit")
-      .attr("x", (columns[a].x + columns[b].x + NODE_W) / 2).attr("y", 30).text(text);
+      .attr("x", (columns[a].x + columns[b].x + NODE_W) / 2).attr("y", 58).text(text);
   });
 
   const share = (c) => d3.sum(c.items, (d) => d.value ?? 0) / c.layer.world;
@@ -173,7 +181,11 @@ function drawGraph(data) {
     `${columns[0].items.length} producers (${pct(share(columns[0]))} of world production), ` +
     `${columns[1].items.length} refiners or importers (${pct(share(columns[1]))} of reported throughput), ` +
     `${columns[2].items.length} consumers (${pct(share(columns[2]))} of world consumption).`);
-  return new Set(columns.flatMap((c) => c.items.map((d) => d.id)));
+  return {
+    drawn: new Set(columns.flatMap((c) => c.items.map((d) => d.id))),
+    flows: [...crude.shown.map((f) => ({ ...f, group: "crude" })), ...products.shown.map((f) => ({ ...f, group: "products" }))]
+      .sort((p, q) => q.kusd - p.kusd),
+  };
 }
 
 // Small multiples: world totals over all years, the chosen year marked. Each has its own unit and a zero baseline.
@@ -220,6 +232,7 @@ function drawMoves(data, prev) {
 
 function highlight() {
   const sel = selection.get();
+  if (mapView) mapView.highlight(sel);
   d3.selectAll("#chart .node").classed("selected", (d) => d.id === sel);
   d3.selectAll("#chart .link")
     .classed("dim", (f) => sel !== null && f.from !== sel && f.to !== sel)
@@ -267,6 +280,7 @@ function ensureCountries() {
       if (selection.get() !== null && !(selection.get() in file.countries)) selection.set(null); // a stale link
       syncSelect();
       drawPanel();
+      updateMap();
     }).catch(() => {
       countriesFile = false;
       d3.select("#country").attr("hidden", "");
@@ -280,13 +294,50 @@ function render(data, prev) {
   d3.select("#error").attr("hidden", "");
   for (const id of ["#chart", "#coverage", "#world", "#moves"]) d3.select(id).selectAll("*").remove();
   d3.select("#subtitle").text(`${data.year}: crude oil production → refining → consumption, with trade flows between countries.`);
-  current = { data, prev, drawn: drawGraph(data) };
+  const graph = drawGraph(data);
+  current = { data, prev, drawn: graph.drawn, flows: graph.flows };
   drawWorld(data.year);
   drawMoves(data, prev);
+  updateMap();
   highlight();
   drawPanel();
   syncHash();
   ensureCountries(); // after the first draw, not before
+  ensureMap();
+}
+
+// The map follows the slider, the selection and the checkboxes. Shading needs countries.json for its fixed colour scale.
+function updateMap() {
+  if (!mapView || !current) return;
+  const measure = shadeMeasures[d3.select("#map-measure").property("value")];
+  const layer = d3.select("#map-measure").property("value");
+  const shadeOn = d3.select("#map-shade").property("checked");
+  d3.select("#map-measure").property("disabled", !shadeOn);
+  const names = new Map(current.data.nodes.map((n) => [n.id, n.name]));
+  const result = mapView.update({
+    names,
+    flows: current.flows,
+    anchors: mapData.anchors,
+    showFlows: d3.select("#map-flows").property("checked"),
+    shade: shadeOn
+      ? { ...measure, values: current.data.layers[layer].values, max: countriesFile ? OilCompute.shadeMax(countriesFile.countries, layer) : null }
+      : null,
+    width: lineWidth,
+    flowTitle: (f) => flowTitle(f, names),
+  });
+  d3.select("#map-note").text(result.missing ? `${result.missing} flows have no location on the map.` : "");
+  mapView.highlight(selection.get());
+}
+
+function ensureMap() {
+  if (!mapPromise) {
+    mapPromise = getJson("data/map.json").then((file) => {
+      mapData = file;
+      mapView = OilMap.create(d3.select("#map"), d3.select("#legend"), file, (id) => selection.set(selection.get() === id ? null : id));
+      updateMap();
+    }).catch(() => d3.select("#map").text("The map could not be loaded."));
+  }
+  return mapPromise;
 }
 
 async function show(year) {
@@ -312,6 +363,10 @@ async function main() {
     fail(`Could not load the data (${e.message}). This page must be served over HTTP, for example: python3 -m http.server -d docs`);
     return;
   }
+  lineWidth = d3.scaleSqrt() // one US$ width scale for both groups and every year
+    .domain([0, d3.max(Object.values(summary.trade), (g) => g.max_flow)])
+    .range([0.75, 14]);
+  for (const id of ["#map-flows", "#map-shade", "#map-measure"]) d3.select(id).on("change", updateMap);
   const slider = d3.select("#year")
     .attr("min", d3.min(years)).attr("max", d3.max(years)).attr("step", 1).attr("disabled", null); // enabled once the data is there
   slider.on("input", () => show(Number(slider.property("value"))));
