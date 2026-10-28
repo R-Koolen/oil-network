@@ -7,7 +7,7 @@ Standard library only (Python 3.14 tested). From the repository root:
 
 ```sh
 python3 pipeline/fetch.py                       # download raw files into data/raw/ (gitignored), about 1.3 GB
-python3 pipeline/build.py                       # write docs/data/<year>.json, index.json, summary.json and countries.json, about 3 minutes
+python3 pipeline/build.py                       # write docs/data/<year>.json, index.json, summary.json, countries.json and map.json, about 3 minutes
 python3 -m unittest discover -s pipeline -v     # checks; the ones that compare with data/raw/ skip without it
 ```
 
@@ -20,6 +20,7 @@ python3 -m unittest discover -s pipeline -v     # checks; the ones that compare 
 | `undata_refining.csv` | UNdata Energy Statistics, trIDs 131 and 086, paged from the HTML view (the CSV download now redirects to a JavaScript app) | `12673e07…a3674b` |
 | `BACI_HS12_V202601.zip` | CEPII BACI, HS12, version 202601 | `2dd0dd61…b75bf9` |
 | `m49.html` | UNSD M49 overview page (code matching only) | `b9048114…a7a1fb` |
+| `world-atlas-2.0.2.tgz` | npm `world-atlas` 2.0.2 (Natural Earth 4.1.0 as TopoJSON, ISC); `package/countries-50m.json` is used | `032e7765…c05b97` |
 
 EIA and UNdata revise their files, so a later fetch can produce different numbers.
 
@@ -126,6 +127,38 @@ files, so they match them exactly.
   the country's flows as importer and as exporter. They are `null` for a year in which the country has no flow in
   that group at all, and `0` when it has flows in one direction only. Because BACI lists only non-zero flows, `0`
   means "no flow listed", not a measured zero.
+
+## Format of `docs/data/map.json`
+
+The country shapes for the map, and a place on the map for every country, with the same ids as the other files.
+
+```json
+{
+  "topology": {"type": "Topology", "transform": {…}, "objects": {"countries": {"type": "GeometryCollection",
+               "geometries": [{"type": "Polygon", "arcs": […], "id": "SGP"}, …]}}, "arcs": […]},
+  "anchors": {"SGP": [103.82, 1.36], "USA": [-99.14, 39.53], …}
+}
+```
+
+- `topology`: TopoJSON from world-atlas 2.0.2 (Natural Earth 4.1.0, 1:50m), read in the browser with
+  `topojson-client` (vendored in `docs/vendor/`). 50 m is used because the 110 m map has no shape for Singapore,
+  Bahrain, Hong Kong, Malta and about 60 more of our countries. Each geometry's `id` is our ISO3 id. The pipeline
+  converts them: world-atlas ids are ISO 3166 numeric codes, translated with the M49 table (code matching only, as
+  for UNdata); Taiwan's code 158 isn't in that table and is mapped to `TWN`, and Kosovo, which has no code, is
+  matched by name to `XKS`. **No names are published**: Natural Earth's `properties` are dropped, and the page gets
+  names from the year files. A few shapes have no id (Somaliland, Northern Cyprus, Siachen Glacier, the Indian Ocean
+  Territories, Ashmore and Cartier Islands) and are drawn as unlabelled land. The `land` object and the arcs only it
+  used are removed.
+- `anchors`: `[longitude, latitude]` for each id, where the page puts a country's end of a trade line and a marker.
+  For a country with a shape, it is the centre of its **largest polygon**, so France is metropolitan France and the
+  United States the contiguous states, not the middle of everything. Longitudes are made continuous across the
+  antimeridian first, so Russia and Fiji come out right. Three countries where that polygon is not where the oil
+  trade is are moved by hand (`MAP_ANCHOR_FIX`): Indonesia to Java (not Kalimantan), Malaysia to the peninsula (not
+  Borneo) and New Zealand to the North Island. For areas BACI has trade for but the map has no shape for
+  (`BES`, `CCK`, `CXR`, `GIB`, `MYT`, `TKL`, `TUV`), a point typed into `build.py` (`MAP_POINTS`, approximate) is used.
+  A test checks that every country at the end of any flow in any year has an anchor.
+- EIA-only areas that have no trade (`GLP`, `GUF`, `MTQ`, `REU`, `NLDA`, `USIQ`, `WAK`) have no shape and no anchor.
+- About 740 KB, 230 KB gzipped.
 
 ### What each layer measures
 

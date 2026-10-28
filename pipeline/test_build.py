@@ -28,7 +28,7 @@ class Shape(unittest.TestCase):
         self.assertEqual(index["years"], list(build.YEARS))
         self.assertGreaterEqual(len(index["years"]), 10)
         self.assertEqual(sorted(p.stem for p in build.OUT.glob("*.json")),
-                         sorted([str(y) for y in build.YEARS] + ["index", "summary", "countries"]))
+                         sorted([str(y) for y in build.YEARS] + ["index", "summary", "countries", "map"]))
 
     def test_every_year_has_all_layers_and_trade(self):
         for y, d in DOCS.items():
@@ -138,6 +138,78 @@ class Countries(unittest.TestCase):
 
     def test_file_is_small(self):
         self.assertLess((build.OUT / "countries.json").stat().st_size, 600_000)
+
+
+class MapData(unittest.TestCase):
+    MAP = json.loads((build.OUT / "map.json").read_text(encoding="utf-8"))
+    GEOMS = MAP["topology"]["objects"]["countries"]["geometries"]
+
+    def test_every_flow_endpoint_has_a_location_in_every_year(self):
+        # the page draws a line for each shown flow, so both ends need a place on the map
+        anchors = self.MAP["anchors"]
+        for y, d in DOCS.items():
+            for group, flows in d["trade"].items():
+                for f in flows:
+                    self.assertIn(f["from"], anchors, f"{y} {group}")
+                    self.assertIn(f["to"], anchors, f"{y} {group}")
+
+    def test_ids_are_unique_iso3_style_codes_and_no_names_are_published(self):
+        ids = [g["id"] for g in self.GEOMS if "id" in g]
+        self.assertEqual(len(ids), len(set(ids)))
+        for i in ids:
+            self.assertRegex(i, r"^[A-Z]{3}$")
+        self.assertTrue(set(ids) <= set(self.MAP["anchors"]))
+        self.assertEqual({k for g in self.GEOMS for k in g}, {"type", "arcs", "id"})  # no properties, no names
+        self.assertEqual(set(self.MAP), {"topology", "anchors"})
+
+    def test_the_countries_the_110m_map_lacks_have_shapes(self):
+        ids = {g["id"] for g in self.GEOMS if "id" in g}
+        self.assertLessEqual({"SGP", "BHR", "HKG", "MLT", "TWN", "XKS", "FRA", "NOR", "USA", "AUS"}, ids)
+
+    def test_point_only_areas_are_not_also_shapes(self):
+        ids = {g["id"] for g in self.GEOMS if "id" in g}
+        self.assertFalse(ids & set(build.MAP_POINTS))
+        for iso in build.MAP_POINTS:
+            self.assertEqual(self.MAP["anchors"][iso], build.MAP_POINTS[iso])
+
+    def test_locations_are_on_the_globe_and_inside_the_country(self):
+        topo = self.MAP["topology"]
+        for g in self.GEOMS:
+            if "id" not in g:
+                continue
+            polygons = g["arcs"] if g["type"] == "MultiPolygon" else [g["arcs"]]
+            xs = [x for p in polygons for x, _ in build.ring_points(topo, p[0])]
+            ys = [y for p in polygons for _, y in build.ring_points(topo, p[0])]
+            lon, lat = self.MAP["anchors"][g["id"]]
+            self.assertTrue(-180 <= lon <= 180 and -90 <= lat <= 90, g["id"])
+            self.assertTrue(min(ys) - 0.01 <= lat <= max(ys) + 0.01, g["id"])
+            # a longitude may be wrapped past 180 inside a polygon that crosses the antimeridian
+            self.assertTrue(any(min(xs) - 0.01 <= l <= max(xs) + 0.01 for l in (lon, lon + 360, lon - 360)), g["id"])
+
+    def test_overrides_are_used(self):
+        for iso, point in build.MAP_ANCHOR_FIX.items():
+            self.assertEqual(self.MAP["anchors"][iso], point)
+
+    def test_main_landmass_not_the_middle_of_everything(self):
+        a = self.MAP["anchors"]
+        self.assertTrue(-5 < a["FRA"][0] < 10 and 42 < a["FRA"][1] < 51)  # metropolitan France, not French Guiana
+        self.assertTrue(-130 < a["USA"][0] < -70)  # the contiguous states
+        self.assertTrue(50 < a["RUS"][0] < 140)  # not wrapped past the antimeridian
+        self.assertTrue(3 < a["NLD"][0] < 8 and 50 < a["NLD"][1] < 54)
+
+    def test_no_unused_arcs_and_all_references_valid(self):
+        topo, used = self.MAP["topology"], set()
+
+        def walk(a):
+            for x in a:
+                walk(x) if isinstance(x, list) else used.add(x if x >= 0 else ~x)
+
+        for g in self.GEOMS:
+            walk(g["arcs"])
+        self.assertEqual(used, set(range(len(topo["arcs"]))))
+
+    def test_map_file_is_the_expected_size(self):
+        self.assertLess((build.OUT / "map.json").stat().st_size, 800_000)
 
 
 class MatchesSource(unittest.TestCase):

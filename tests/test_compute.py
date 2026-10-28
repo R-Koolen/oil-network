@@ -80,6 +80,32 @@ class ComputeMatchesPython(unittest.TestCase):
         self.assertEqual(got, want)
         self.assertEqual(len(got), 14)  # the countries the README's "exceed 100%" statement counts
 
+    def test_shade_max_is_the_largest_country_value_in_any_year(self):
+        countries = json.loads((DATA / "countries.json").read_text(encoding="utf-8"))["countries"]
+        js = ("const C=require('./docs/compute.js');const d=require('./docs/data/countries.json');"
+              "console.log(JSON.stringify(['production','consumption','refining_throughput'].map(l=>C.shadeMax(d.countries,l))))")
+        got = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        want = [max(v for c in countries.values() for v in c[l] if v is not None)
+                for l in ("production", "consumption", "refining_throughput")]
+        self.assertEqual(got, want)
+
+    def test_every_flow_the_graph_draws_has_a_place_on_the_map_in_every_year(self):
+        js = ("const C=require('./docs/compute.js');const fs=require('fs');const m=require('./docs/data/map.json');"
+              "const out={};for(const y of require('./docs/data/index.json').years){const d=JSON.parse(fs.readFileSync('docs/data/'+y+'.json'));"
+              "let drawn=0,missing=0;for(const g of ['crude','products']){const r=C.mapLines(C.topFlows(d.trade[g],60).shown,m.anchors);drawn+=r.lines.length;missing+=r.missing}"
+              "out[y]=[drawn,missing]}console.log(JSON.stringify(out))")
+        got = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        self.assertEqual(len(got), len(YEARS))
+        for y, (drawn, missing) in got.items():
+            self.assertEqual((drawn, missing), (120, 0), y)
+
+    def test_map_lines_skip_and_count_flows_without_a_location(self):
+        js = ("const C=require('./docs/compute.js');console.log(JSON.stringify(C.mapLines("
+              "[{from:'A',to:'B',kusd:1},{from:'A',to:'Z',kusd:2}],{A:[1,2],B:[3,4]})))")
+        got = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        self.assertEqual(got["missing"], 1)
+        self.assertEqual(got["lines"], [{"from": "A", "to": "B", "kusd": 1, "a": [1, 2], "b": [3, 4]}])
+
     def test_hash_round_trip(self):
         js = ("const C=require('./docs/compute.js');const y=[2013,2020,2023];"
               "console.log(JSON.stringify([C.parseHash('#2020/usa',y),C.parseHash('#2020',y),C.parseHash('#1999/USA',y),"

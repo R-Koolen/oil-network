@@ -2,7 +2,8 @@
 
 The site republishes the data in `docs/data/`. We use a source only if its terms allow public
 republication with nothing more than attribution: no permission request, no registration. The terms below
-were read at the source on 2026-10-27, except the Energy Institute's, which were read on 2026-10-09.
+were read at the source on 2026-10-27, except the Energy Institute's, which were read on 2026-10-09, and Natural Earth's,
+which were read on 2026-10-28.
 
 ## Required attribution
 
@@ -52,6 +53,19 @@ When the data is refreshed, update the dates to those of the new files.
 - The BACI page also gives a reference to cite (Gaulier and Zignago, 2010, above).
 - Republishing allowed: yes, with source and update date.
 - BACI is CEPII's reconciliation of UN Comtrade data. We rely on CEPII's own licence statement for it.
+
+### Natural Earth: map shapes
+
+- Data: Natural Earth 4.1.0, Admin 0 countries (1:50m), as TopoJSON in the npm package `world-atlas` 2.0.2 (ISC,
+  © Michael Bostock), https://registry.npmjs.org/world-atlas/-/world-atlas-2.0.2.tgz. The package's LICENSE is kept
+  in `docs/vendor/LICENSE-world-atlas`.
+- Terms: https://www.naturalearthdata.com/about/terms-of-use/
+  > All versions of Natural Earth raster + vector map data found on this website are in the public domain. […]
+  > No permission is needed to use Natural Earth. Crediting the authors is unnecessary. However, if you wish to cite
+  > the map data, simply use one of the following. Short text: Made with Natural Earth.
+- Republishing allowed: yes. The site shows "Made with Natural Earth." anyway.
+- The country ids in `docs/data/map.json` are ours (ISO3), converted in the pipeline; Natural Earth's names are not
+  published.
 
 ### UNSD M49 table: code matching only
 

@@ -6,6 +6,9 @@
   --products: #1f6f8b;
   --node: #3b4350;
   --nodata: #9aa3ad;
+  --ocean: #eef3f8;
+  --land: #dfe3e8;
+  --nodata-fill: #c5cbd3;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -16,6 +19,9 @@
     --products: #6cc0dc;
     --node: #b8c0cc;
     --nodata: #6b747f;
+    --ocean: #1b2128;
+    --land: #2d343d;
+    --nodata-fill: #3a424c;
   }
 }
 body {
@@ -92,3 +98,29 @@ svg.mini { width: 100%; height: auto; }
 .mini .series.b { stroke-dasharray: 4 3; stroke: var(--products); }
 .mini .dot { fill: var(--node); stroke: none; }
 .mini .dot.b { fill: var(--products); }
+#layout { display: block; }
+#left, #right { min-width: 0; }
+#chart svg, #map svg { max-width: 900px; margin: 0 auto; }
+@media (min-width: 1280px) {
+  header, main, footer { max-width: 1760px; }
+  #layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; align-items: start; }
+}
+#map-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0; font-size: 0.9rem; }
+#map-controls label { font-weight: 600; }
+#map-controls label.inline { font-weight: 400; margin-left: -8px; }
+#map-controls select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--nodata); border-radius: 4px; padding: 2px 6px; }
+#map-note { margin: 0; }
+.map-wrap svg { display: block; }
+.sphere { fill: var(--ocean); stroke: var(--nodata); stroke-width: 0.8; }
+#map .country { stroke: var(--bg); stroke-width: 0.35; cursor: pointer; }
+#map .country.inert { cursor: default; }
+.country.plain { fill: var(--land); }
+.country.nodata { fill: var(--nodata-fill); }
+#map .country.selected { stroke: var(--fg); stroke-width: 1.6; }
+#map .link { fill: none; stroke-opacity: 0.45; pointer-events: stroke; }
+#map .link.dim { stroke-opacity: 0.07; }
+#map .link.focus { stroke-opacity: 0.85; }
+#map .end { fill: var(--fg); stroke: var(--bg); stroke-width: 0.6; cursor: pointer; }
+#map .end.selected { fill: var(--crude); stroke: var(--fg); stroke-width: 1.4; r: 4.5px; }
+#legend svg { width: 100%; max-width: 420px; height: auto; display: block; }
+.legend .axis { stroke: var(--nodata); stroke-width: 1; }

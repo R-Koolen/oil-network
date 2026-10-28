@@ -58,6 +58,25 @@
     return years.filter((_, i) => throughput[i] !== null && capacity[i] !== null && throughput[i] > capacity[i]);
   }
 
+  // The largest value a layer takes for any country in any year (countries.json), so a colour scale can be fixed across years.
+  function shadeMax(countries, layer) {
+    let max = 0;
+    for (const c of Object.values(countries)) for (const v of c[layer]) if (v !== null && v > max) max = v;
+    return max;
+  }
+
+  // Each flow with the map locations of its two ends; flows with an end that has no location are counted, not drawn.
+  function mapLines(flows, anchors) {
+    const lines = [];
+    let missing = 0;
+    for (const f of flows) {
+      const a = anchors[f.from], b = anchors[f.to];
+      if (a && b) lines.push({ ...f, a, b });
+      else missing += 1;
+    }
+    return { lines, missing };
+  }
+
   // "#2020/USA" -> {year: 2020, country: "USA"}; anything else gives null parts. The country is only checked for
   // its shape here; the page checks it against the list of countries.
   function parseHash(hash, years) {
@@ -86,7 +105,7 @@
     };
   }
 
-  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, parseHash, formatHash, createSelection };
+  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, parseHash, formatHash, createSelection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();

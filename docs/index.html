@@ -27,15 +27,35 @@
     <span class="hint">Click a country in the graph, or choose one from the list, to see its numbers.</span>
   </div>
   <p id="error" hidden></p>
-  <div id="coverage"></div>
-  <div id="chart"></div>
-  <section id="country-panel" hidden></section>
+  <div id="layout">
+    <div id="left">
+      <div id="coverage"></div>
+      <div id="chart"></div>
+    </div>
+    <div id="right">
+      <div id="map-controls">
+        <label><input type="checkbox" id="map-flows" checked> Trade flows</label>
+        <label><input type="checkbox" id="map-shade" checked> Shading</label>
+        <label for="map-measure" class="inline">by</label>
+        <select id="map-measure">
+          <option value="production">Crude oil production</option>
+          <option value="consumption">Petroleum consumption</option>
+          <option value="refining_throughput">Refining throughput</option>
+        </select>
+        <span id="map-note" class="hint"></span>
+      </div>
+      <div id="map" class="map-wrap"></div>
+      <div id="legend"></div>
+      <section id="country-panel" hidden></section>
+    </div>
+  </div>
   <ul id="notes">
     <li>The three columns are not on one scale: production and consumption are in thousand barrels per day (kb/d), refining throughput is in thousand tonnes per year (kt/yr). Node height is proportional to value on a fixed scale for each column, the same in every year, so the same height means the same value whichever year you pick. Values too small for that scale are drawn at a minimum height.</li>
     <li>Line width is trade value in US dollars, one scale for both crude and product flows and for every year. Trade values are nominal US dollars, so oil prices move them a lot. Tonnes are not used: some tonnage figures in the trade data are unreliable.</li>
     <li>Flows inside a country (for example, a country refining its own crude) are not in the data and are not drawn.</li>
     <li>A country marked “no data” appears because a drawn flow starts or ends there, but the source has no number for it in that column.</li>
-    <li>Hover over a node or a line for its values.</li>
+    <li>The map shows the same flows as the graph, in the same colours and widths, between each country's main landmass (a dot marks each end). Shading uses one colour scale per measure, fixed across years; countries without a number are grey, not zero.</li>
+    <li>Hover over a node, a line or a country for its values.</li>
   </ul>
   <section>
     <h2>The world over time</h2>
@@ -56,10 +76,13 @@
   Trade flows: CEPII, BACI HS12 version 202601 (<a href="https://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37">https://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37</a>,
   released 22 Jan 2026), Licence Ouverte / Open Licence 2.0 (Etalab). Gaulier, G. and Zignago, S. (2010),
   BACI: International Trade Database at the Product-Level. The 1994-2007 Version. CEPII Working Paper N°2010-23.</p>
+  <p>Map: Made with Natural Earth.</p>
 </footer>
 <script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
 <script src="compute.js"></script>
 <script src="panel.js"></script>
+<script src="map.js"></script>
 <script src="graph.js"></script>
 </body>
 </html>
