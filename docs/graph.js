@@ -3,7 +3,7 @@
 // The oil network for the year picked on the slider. Calculations are in compute.js (OilCompute).
 // Everything is loaded from this site; styling lives in style.css (CSP allows no inline style).
 
-const { topFlows, layoutColumn, biggestMoves, shareMoves } = OilCompute;
+const { topFlows, layoutColumn, biggestMoves } = OilCompute;
 
 const TOP_CRUDE_FLOWS = 60;
 const TOP_PRODUCT_FLOWS = 60;
@@ -221,11 +221,6 @@ function drawMoves(data, prev) {
     list(grid, `${label}: largest rises`, m.risers.map(change));
     list(grid, `${label}: largest falls`, m.fallers.map(change));
   }
-  for (const [group, label] of [["crude", "crude oil"], ["products", "petroleum products"]]) {
-    const rows = shareMoves(prev.trade[group], data.trade[group], MOVES_SHOWN).map((m) =>
-      `${names.get(m.from) || m.from} → ${names.get(m.to) || m.to}: ${pct1(m.before)} → ${pct1(m.after)} (${d3.format("+.2f")(m.delta * 100)} points)`);
-    list(grid, `Trade flows whose share of world ${label} trade value changed most`, rows);
-  }
 }
 
 function render(data, prev) {
@@ -267,7 +262,7 @@ async function main() {
     return;
   }
   const slider = d3.select("#year")
-    .attr("min", d3.min(years)).attr("max", d3.max(years)).attr("step", 1).attr("disabled", null);
+    .attr("min", d3.min(years)).attr("max", d3.max(years)).attr("step", 1).attr("disabled", null); // enabled once the data is there
   slider.on("input", () => show(Number(slider.property("value"))));
   window.addEventListener("hashchange", () => {
     const y = yearFromHash();

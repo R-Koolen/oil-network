@@ -8,10 +8,9 @@ const read = (y) => JSON.parse(fs.readFileSync(path.join(__dirname, "..", "docs"
 const year = Number(process.argv[2]);
 const prev = read(year - 1), cur = read(year);
 const names = new Map([...prev.nodes, ...cur.nodes].map((n) => [n.id, n.name]));
-const out = { moves: {}, shares: {}, top: {} };
+const out = { moves: {}, top: {} };
 for (const layer of ["production", "consumption"]) out.moves[layer] = C.biggestMoves(prev.layers[layer].values, cur.layers[layer].values, names, 3);
 for (const group of ["crude", "products"]) {
-  out.shares[group] = C.shareMoves(prev.trade[group], cur.trade[group], 3);
   const t = C.topFlows(cur.trade[group], 60);
   out.top[group] = { total: t.total, share: t.share, shown: t.shown.map((f) => [f.from, f.to]) };
 }

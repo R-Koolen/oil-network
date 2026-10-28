@@ -72,7 +72,7 @@ lines up with `years`. All numbers are copied or summed from the per-year files,
 {
   "years": [2012, …, 2023],
   "world": {
-    "production":          {"unit": "kb/d",  "values": [74770.4, …]},
+    "production":          {"unit": "kb/d",  "values": [76691.825, …]},
     "consumption":         {"unit": "kb/d",  "values": […]},
     "refining_capacity":   {"unit": "kt/yr", "values": […]},
     "refining_throughput": {"unit": "kt/yr", "values": […]}
@@ -151,7 +151,13 @@ so nothing is left over.
   value implies. For example, 2023 crude ARE→THA is 214.9 Mt at $64/t, when the median is $649/t; 214.9 Mt is
   ~4.3 mb/d, several times Thailand's total crude imports. Flows below a quarter of the year's median unit
   value hold ~15% of 2023 crude tonnes and ~16% of 2020 product tonnes, but ~0% of 2015 crude tonnes. The pipeline passes
-  BACI's numbers through unchanged. `kusd` looks reliable; `tonnes` does not. **Sizing graph edges by
+  BACI's numbers through unchanged. `kusd` is more reliable than `tonnes`, but not always (next item). **Sizing graph edges by
   `tonnes` will mislead**, so size them by `kusd`.
+- **Some BACI values are implausible too, and flows come and go between years.** In 2012, crude SAU→TWN is
+  US$187.1 bn (228 Mt) and ARE→TWN US$89.6 bn: Taiwan's crude imports add up to US$278 bn that year, against
+  US$16–51 bn in every other year. That alone puts about US$240 bn into the 2012 world crude trade total
+  (`summary.json`: US$1.78 tn, the series' peak) and sets `trade.crude.max_flow`. Separately, a large flow can be
+  missing for a whole year: crude SAU→JPN is US$50/46/44 bn in 2012–14, absent in 2015 and US$18 bn in 2016. An absent flow is
+  not a measured zero, so year-to-year changes in a single flow's share of trade can be reporting gaps.
 - Trade isn't linked to production or consumption: imports minus exports won't exactly equal consumption
   minus production (stocks, bunkers, re-exports and differences in definitions all play a part).

@@ -37,15 +37,7 @@ class ComputeMatchesPython(unittest.TestCase):
             for m in got["moves"][layer]["risers"] + got["moves"][layer]["fallers"]:
                 self.assertAlmostEqual(m["delta"], deltas[m["id"]], places=6)
         for group in ("crude", "products"):
-            pt = sum(f["kusd"] for f in prev["trade"][group])
             ct = sum(f["kusd"] for f in cur["trade"][group])
-            before = {(f["from"], f["to"]): f["kusd"] / pt for f in prev["trade"][group]}
-            after = {(f["from"], f["to"]): f["kusd"] / ct for f in cur["trade"][group]}
-            delta = {k: after.get(k, 0) - before.get(k, 0) for k in before.keys() | after.keys()}
-            want = sorted(delta, key=lambda k: (-abs(delta[k]), k[0] + k[1]))[:3]
-            self.assertEqual([(m["from"], m["to"]) for m in got["shares"][group]], want, f"{year} {group}")
-            for m in got["shares"][group]:
-                self.assertAlmostEqual(m["delta"], delta[(m["from"], m["to"])], places=9)
             flows = sorted(cur["trade"][group], key=lambda f: -f["kusd"])[:60]
             self.assertEqual(got["top"][group]["total"], len(cur["trade"][group]))
             self.assertAlmostEqual(got["top"][group]["share"], sum(f["kusd"] for f in flows) / ct, places=9)

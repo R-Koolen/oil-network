@@ -37,26 +37,7 @@
     };
   }
 
-  // The flows whose share of the year's world trade value changed most. Shares, not USD, so the
-  // oil price doesn't drive the ranking. A flow absent in one year has a share of 0 that year.
-  function shareMoves(prevFlows, curFlows, n) {
-    const prevTotal = sum(prevFlows, (f) => f.kusd);
-    const curTotal = sum(curFlows, (f) => f.kusd);
-    const rows = new Map();
-    for (const f of prevFlows) rows.set(`${f.from}>${f.to}`, { from: f.from, to: f.to, before: f.kusd / prevTotal, after: 0 });
-    for (const f of curFlows) {
-      const key = `${f.from}>${f.to}`;
-      const row = rows.get(key) || { from: f.from, to: f.to, before: 0, after: 0 };
-      row.after = f.kusd / curTotal;
-      rows.set(key, row);
-    }
-    return [...rows.values()]
-      .map((r) => ({ ...r, delta: r.after - r.before }))
-      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || (a.from + a.to).localeCompare(b.from + b.to))
-      .slice(0, n);
-  }
-
-  const api = { topFlows, layoutColumn, biggestMoves, shareMoves };
+  const api = { topFlows, layoutColumn, biggestMoves };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();
