@@ -2,8 +2,9 @@
 
     python3 pipeline/build.py
 
-Standard library only. The output is deterministic: rerunning on the same raw files gives identical bytes.
-The JSON format is documented in pipeline/README.md.
+Also writes docs/data/summary.json: the numbers the page needs across years (world totals, trade totals, largest
+single flow), so it doesn't have to load every year file. Standard library only. The output is deterministic:
+rerunning on the same raw files gives identical bytes. The JSON format is documented in pipeline/README.md.
 """
 import csv
 import html
@@ -29,6 +30,7 @@ UNDATA_M49_FIX = {251: "FRA", 382: "ITA", 579: "NOR", 757: "CHE", 158: "TWN"}
 BACI_ISO3_FIX = {"S19": "TWN"}
 # BACI HS12 folds all of HS 2710 (including waste oils) into one code.
 BACI_GROUPS = {"270900": "crude", "271000": "products"}
+LAYER_ORDER = ("production", "consumption", "refining_capacity", "refining_throughput")
 
 
 def number(s):
@@ -140,6 +142,9 @@ def build():
         return {"id": area, "name": eia_names.get(area) or baci_names[area]}
 
     OUT.mkdir(parents=True, exist_ok=True)
+    summary = {"years": list(YEARS),
+               "world": {layer: {"unit": None, "values": []} for layer in LAYER_ORDER},
+               "trade": {group: {"unit": "kusd", "total": [], "max_flow": 0} for group in BACI_GROUPS.values()}}
     for year in YEARS:
         layers = {}
         for layer in EIA_SERIES:
@@ -159,7 +164,14 @@ def build():
         doc = {"year": year, "nodes": [node(a) for a in sorted(ids)], "layers": layers, "trade": trade}
         (OUT / f"{year}.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")) + "\n",
                                           encoding="utf-8")
+        for layer, l in layers.items():
+            summary["world"][layer]["unit"] = l["unit"]
+            summary["world"][layer]["values"].append(l["world"])
+        for group, flows in trade.items():
+            summary["trade"][group]["total"].append(round(sum(f["kusd"] for f in flows), 3))
+            summary["trade"][group]["max_flow"] = max(summary["trade"][group]["max_flow"], max(f["kusd"] for f in flows))
         print(f"wrote {year}.json")
+    (OUT / "summary.json").write_text(json.dumps(summary, separators=(",", ":")) + "\n", encoding="utf-8")
     (OUT / "index.json").write_text(json.dumps({"years": list(YEARS)}) + "\n", encoding="utf-8")
 
 

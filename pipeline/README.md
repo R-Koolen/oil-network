@@ -7,7 +7,7 @@ Standard library only (Python 3.14 tested). From the repository root:
 
 ```sh
 python3 pipeline/fetch.py                       # download raw files into data/raw/ (gitignored), about 1.3 GB
-python3 pipeline/build.py                       # write docs/data/<year>.json and index.json, about 3 minutes
+python3 pipeline/build.py                       # write docs/data/<year>.json, index.json and summary.json, about 3 minutes
 python3 -m unittest discover -s pipeline -v     # checks; the ones that compare with data/raw/ skip without it
 ```
 
@@ -62,6 +62,33 @@ for all of them. The start is set by BACI HS12, which begins in 2012. The end is
 - Values are rounded to 3 decimals.
 - UNdata footnote markers (numeric references such as `1`, which UNdata's page explains, e.g. "Estimate") are fetched into `data/raw/undata_refining.csv` but not
   carried into the JSON.
+
+## Format of `docs/data/summary.json`
+
+What the page needs across all years, so it doesn't have to load every year file (about 7.5 MB). Every array
+lines up with `years`. All numbers are copied or summed from the per-year files, so they match them exactly.
+
+```json
+{
+  "years": [2012, …, 2023],
+  "world": {
+    "production":          {"unit": "kb/d",  "values": [74770.4, …]},
+    "consumption":         {"unit": "kb/d",  "values": […]},
+    "refining_capacity":   {"unit": "kt/yr", "values": […]},
+    "refining_throughput": {"unit": "kt/yr", "values": […]}
+  },
+  "trade": {
+    "crude":    {"unit": "kusd", "total": [1.2e9, …], "max_flow": 1.1e8},
+    "products": {"unit": "kusd", "total": […],        "max_flow": …}
+  }
+}
+```
+
+- `world.<layer>.values`: each year's `layers.<layer>.world`.
+- `trade.<group>.total`: the sum of `kusd` over every flow of that year, rounded to 3 decimals. These are
+  **nominal US dollars**, so oil prices move them a lot.
+- `trade.<group>.max_flow`: the largest single flow's `kusd` over all years, for a line-width scale that doesn't change
+  with the year.
 
 ### What each layer measures
 
