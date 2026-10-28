@@ -102,7 +102,7 @@ svg.mini { width: 100%; height: auto; }
 #left, #right { min-width: 0; }
 #chart svg, #map svg { max-width: 900px; margin: 0 auto; }
 @media (min-width: 1280px) {
-  main { max-width: 1760px; }
+  header, main, footer { max-width: 1760px; }
   #layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; align-items: start; }
 }
 #map-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0; font-size: 0.9rem; }
