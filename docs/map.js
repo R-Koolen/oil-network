@@ -16,7 +16,8 @@
   // and "no data".
   function drawLegend(root, shade, ramp) {
     root.selectAll("*").remove();
-    const w = 460, h = 46, x0 = 1, bar = 260;
+    // One viewBox unit is one screen pixel, so the legend text keeps its size when the column is narrow.
+    const w = Math.min(520, Math.round(root.node().clientWidth) || 460), h = 46, x0 = 1, bar = Math.max(120, w - 200);
     const svg = root.append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("class", "legend");
     if (!shade || shade.max === null) {
       svg.append("text").attr("class", "tick").attr("x", x0).attr("y", 14).text(shade ? "Loading the colour scale…" : "Shading is off");

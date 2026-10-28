@@ -20,11 +20,13 @@
       "For example, Iran appears as its largest crude supplier in 2020–2022, under sanctions.",
   };
 
-  const W = 260, H = 120, PAD = { l: 8, r: 8, t: 18, b: 20 };
+  const H = 120, PAD = { l: 16, r: 8, t: 18, b: 20 };
 
   // Draws lines on a zero baseline into an svg selection. `lines` is [{values, cls}] aligned with `years`; a null value
   // is a gap, never zero. Every real point gets a dot, so a lone point between gaps still shows.
   function lineChart(svg, years, lines, year, fmtMax) {
+    // One viewBox unit is one screen pixel (the width the svg has now), so the chart text keeps its size.
+    const W = Math.max(150, Math.round(svg.node().getBoundingClientRect().width)) || 260;
     const x = d3.scaleLinear().domain(d3.extent(years)).range([PAD.l, W - PAD.r]);
     const max = d3.max(lines, (l) => d3.max(l.values, (v) => v)) || 0;
     const y = d3.scaleLinear().domain([0, max || 1]).range([H - PAD.b, PAD.t]);
@@ -44,7 +46,7 @@
       }
     }
     svg.append("text").attr("class", "tick").attr("x", PAD.l).attr("y", PAD.t - 5).text(max ? `max ${fmtMax(max)}` : "");
-    svg.append("text").attr("class", "tick").attr("x", PAD.l - 3).attr("y", y(0)).attr("dy", "0.32em").attr("text-anchor", "end").text("0");
+    svg.append("text").attr("class", "tick").attr("x", PAD.l - 4).attr("y", y(0)).attr("dy", "0.32em").attr("text-anchor", "end").text("0");
     svg.append("text").attr("class", "tick").attr("x", PAD.l).attr("y", H - 6).text(years[0]);
     svg.append("text").attr("class", "tick").attr("x", W - PAD.r).attr("y", H - 6).attr("text-anchor", "end").text(years[years.length - 1]);
   }

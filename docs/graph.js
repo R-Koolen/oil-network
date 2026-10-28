@@ -128,8 +128,7 @@ function drawGraph(data) {
   });
   const shown = !NARROW.matches ? [0, 1, 2] : stage === "crude" ? [0, 1] : [1, 2];
   const W = Math.max(320, Math.floor(document.querySelector("#chart").clientWidth));
-  const L = NARROW.matches ? 128 : 150, R = NARROW.matches ? 112 : 160;
-  shown.forEach((ci, k) => { columns[ci].x = L + ((W - L - R - NODE_W) * k) / (shown.length - 1); });
+  const L = NARROW.matches ? 128 : 150, R = NARROW.matches ? 112 : 140;
   const plotH = Math.max(MIN_PLOT_H, d3.max(columns, (c) => c.extent));
   const byId = columns.map((c) => new Map(c.items.map((d) => [d.id, d])));
 
@@ -137,6 +136,20 @@ function drawGraph(data) {
     .attr("viewBox", `0 0 ${W} ${plotH + TOP + 10}`)
     .attr("role", "img")
     .attr("aria-label", `Oil network ${data.year}: production, refining and consumption with trade flows`);
+
+  // With all three columns the middle column's labels sit where the product lines leave it. Those lines run straight
+  // from their own point on the node to the end of the widest label (bold, as when selected) and curve after that,
+  // so every line visibly starts at its own country. The middle column is placed to leave room for that and a curve.
+  const threeColumns = shown.length === 3;
+  let gutter = 0;
+  if (threeColumns) {
+    const probe = svg.append("g").attr("class", "node").append("text").attr("class", "measure-bold");
+    gutter = NODE_W + 6 + d3.max(columns[1].items, (d) => probe.text(d.value === null ? `${d.name} (no data)` : d.name).node().getComputedTextLength()) + 8;
+    probe.node().parentNode.remove();
+  }
+  const x0 = L, x2 = W - R - NODE_W;
+  shown.forEach((ci, k) => { columns[ci].x = x0 + ((x2 - x0) * k) / (shown.length - 1); });
+  if (threeColumns) columns[1].x = Math.max(x0 + 170, Math.min(columns[1].x, x2 - gutter - Math.max(80, (x2 - x0) * 0.2)));
   const plot = svg.append("g").attr("transform", `translate(0,${TOP})`);
 
   const link = d3.linkHorizontal().x((p) => p[0]).y((p) => p[1]);
@@ -155,7 +168,12 @@ function drawGraph(data) {
   plot.append("g").selectAll("path").data(flows).join("path")
     .attr("class", (f) => `link ${f.group}`)
     .attr("stroke-width", (f) => lineWidth(f.kusd))
-    .attr("d", (f, i) => link({ source: [columns[f.a].x + NODE_W, y0[i]], target: [columns[f.b].x, y1[i]] }))
+    .attr("d", (f, i) => {
+      const sx = columns[f.a].x + NODE_W, tx = columns[f.b].x;
+      if (!(threeColumns && f.a === 1)) return link({ source: [sx, y0[i]], target: [tx, y1[i]] });
+      const gx = columns[1].x + gutter, mid = (gx + tx) / 2;
+      return `M${sx},${y0[i]}H${gx}C${mid},${y0[i]} ${mid},${y1[i]} ${tx},${y1[i]}`;
+    })
     .append("title")
     .text((f) => flowTitle(f, names));
 
