@@ -30,9 +30,15 @@
     const pos = (v) => x0 + bar * Math.sqrt(v / shade.max);
     const ticks = [0];
     for (let t = Math.pow(10, Math.ceil(Math.log10(shade.max / 300))); t <= shade.max; t *= 10) ticks.push(t);
+    // A tick whose label would start less than 8 px after the last kept label is left out (the bar can be short on a phone).
+    let labelEnd = -Infinity;
     ticks.forEach((v) => {
+      const label = svg.append("text").attr("class", "tick").attr("x", pos(v)).attr("y", 42)
+        .attr("text-anchor", v === 0 ? "start" : "middle").text(d3.format(",")(v));
+      const box = label.node().getBBox();
+      if (box.x < labelEnd + 8) { label.remove(); return; }
+      labelEnd = box.x + box.width;
       svg.append("line").attr("class", "axis").attr("x1", pos(v)).attr("x2", pos(v)).attr("y1", 27).attr("y2", 31);
-      svg.append("text").attr("class", "tick").attr("x", pos(v)).attr("y", 42).attr("text-anchor", v === 0 ? "start" : "middle").text(d3.format(",")(v));
     });
     [["country zero", "0"], ["country nodata", "no data"]].forEach(([cls, label], i) => {
       const x = x0 + bar + 24 + i * 70;
