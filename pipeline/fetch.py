@@ -16,6 +16,8 @@ RAW = Path(__file__).resolve().parent.parent / "data" / "raw"
 EIA_URL = "https://api.eia.gov/bulk/INTL.zip"
 BACI_URL = "https://www.cepii.fr/DATA_DOWNLOAD/baci/data/BACI_HS12_V202601.zip"
 M49_URL = "https://unstats.un.org/unsd/methodology/m49/overview/"
+# Natural Earth 4.1.0 country shapes as TopoJSON (public domain data; the npm package is ISC, (c) Michael Bostock).
+WORLD_ATLAS_URL = "https://registry.npmjs.org/world-atlas/-/world-atlas-2.0.2.tgz"
 # UNdata's CSV download handler now redirects to a JavaScript app, so we page through the HTML view.
 UNDATA_PAGE = ("https://data.un.org/Data.aspx?d=EDATA&f=cmID%3aCR%3btrID%3a{tr}"
                "&c=0,1,2,3,4,5,6,7,8,9&s=_crEngNameOrderBy:asc,_enID:asc,yr:desc&v={page}")
@@ -83,6 +85,7 @@ def main():
     download(M49_URL, RAW / "m49.html")
     fetch_undata(RAW / "undata_refining.csv")
     download(BACI_URL, RAW / Path(BACI_URL).name)
+    download(WORLD_ATLAS_URL, RAW / Path(WORLD_ATLAS_URL).name)
 
 
 if __name__ == "__main__":

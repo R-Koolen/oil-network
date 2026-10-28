@@ -4,14 +4,17 @@
 
 Also writes docs/data/summary.json (world totals, trade totals and the largest single flow for every year) and
 docs/data/countries.json (every country's layer values and trade totals for every year), so the page doesn't have
-to load every year file for a time series. Standard library only. The output is deterministic:
+to load every year file for a time series, and docs/data/map.json (country shapes with ISO3 ids, and a map
+location for every country). Standard library only. The output is deterministic:
 rerunning on the same raw files gives identical bytes. The JSON format is documented in pipeline/README.md.
 """
 import csv
 import html
 import io
 import json
+import math
 import re
+import tarfile
 import zipfile
 from collections import defaultdict
 from pathlib import Path
@@ -33,6 +36,21 @@ UNDATA_M49_FIX = {251: "FRA", 382: "ITA", 579: "NOR", 757: "CHE", 158: "TWN"}
 BACI_ISO3_FIX = {"S19": "TWN"}
 # BACI HS12 folds all of HS 2710 (including waste oils) into one code.
 BACI_GROUPS = {"270900": "crude", "271000": "products"}
+WORLD_ATLAS = "world-atlas-2.0.2.tgz"
+# world-atlas (Natural Earth 4.1.0) ids are ISO 3166 numeric codes; the M49 table translates them to ISO3.
+MAP_ID_FIX = {158: "TWN"}  # Natural Earth's Taiwan id, which the M49 table has no row for
+MAP_NAME_FIX = {"Kosovo": "XKS"}  # Natural Earth gives Kosovo no id
+# Areas BACI reports trade for that the 50 m map has no shape for, as [longitude, latitude] of the main island or
+# town. Approximate; they only place the end of a trade line and a small marker.
+MAP_POINTS = {
+    "BES": [-68.27, 12.15],   # Bonaire, Sint Eustatius and Saba (Caribbean Netherlands)
+    "CCK": [96.83, -12.16],   # Cocos (Keeling) Islands
+    "CXR": [105.69, -10.49],  # Christmas Island
+    "GIB": [-5.35, 36.14],    # Gibraltar
+    "MYT": [45.17, -12.82],   # Mayotte
+    "TKL": [-171.85, -9.17],  # Tokelau
+    "TUV": [179.20, -8.52],   # Tuvalu
+}
 LAYER_ORDER = ("production", "consumption", "refining_capacity", "refining_throughput")
 
 
@@ -59,6 +77,106 @@ def read_m49(path):
         if c and c[9].isdigit() and c[11]:
             areas[int(c[9])] = c[11]
     return areas
+
+
+def read_world_atlas(path):
+    with tarfile.open(path, "r:gz") as t:
+        return json.load(t.extractfile("package/countries-50m.json"))
+
+
+def arc_points(topo, i):
+    """The points of arc i (a negative i is arc ~i reversed) in degrees."""
+    (sx, sy), (tx, ty) = topo["transform"]["scale"], topo["transform"]["translate"]
+    x = y = 0
+    pts = []
+    for dx, dy in topo["arcs"][i if i >= 0 else ~i]:
+        x += dx
+        y += dy
+        pts.append((x * sx + tx, y * sy + ty))
+    return pts if i >= 0 else pts[::-1]
+
+
+def ring_points(topo, ring):
+    """The ring's points with longitudes made continuous: a polygon that crosses the antimeridian (Russia, Fiji)
+    then runs past 180 instead of jumping to -180."""
+    pts = []
+    for a in ring:
+        p = arc_points(topo, a)
+        pts += p if not pts else p[1:]
+    out, shift = pts[:1], 0.0
+    for (x0, _), (x1, y1) in zip(pts, pts[1:]):
+        shift += -360.0 if x1 - x0 > 180 else 360.0 if x1 - x0 < -180 else 0.0
+        out.append((x1 + shift, y1))
+    return out
+
+
+def ring_centroid(pts):
+    """(area, lon, lat) of a ring, flat in longitude scaled by cos(latitude); good enough to pick a main landmass."""
+    k = math.cos(math.radians(sum(y for _, y in pts) / len(pts)))
+    q = [(x * k, y) for x, y in pts]
+    a = cx = cy = 0.0
+    for (x0, y0), (x1, y1) in zip(q, q[1:] + q[:1]):
+        cross = x0 * y1 - x1 * y0
+        a += cross
+        cx += (x0 + x1) * cross
+        cy += (y0 + y1) * cross
+    if abs(a) < 1e-12:
+        return 0.0, sum(x for x, _ in pts) / len(pts), sum(y for _, y in pts) / len(pts)
+    return abs(a) / 2, cx / (3 * a) / k, cy / (3 * a)
+
+
+def main_landmass_point(topo, geometry):
+    """Longitude and latitude of the centre of a country's largest polygon (so France is Paris-ish, not the
+    middle of the Atlantic)."""
+    polygons = geometry["arcs"] if geometry["type"] == "MultiPolygon" else [geometry["arcs"]]
+    best = max((ring_centroid(ring_points(topo, p[0])) for p in polygons), key=lambda r: r[0])
+    return [round((best[1] + 180) % 360 - 180, 2), round(best[2], 2)]
+
+
+def build_map(topo, m49):
+    """The shapes with ISO3 ids (names dropped, unused arcs removed) and a [lon, lat] per country."""
+    geoms, anchors, seen = [], {}, set()
+    for g in topo["objects"]["countries"]["geometries"]:
+        iso = MAP_NAME_FIX.get(g["properties"]["name"]) if g.get("id") is None else \
+            MAP_ID_FIX.get(int(g["id"])) or m49.get(int(g["id"]))
+        if iso in seen:
+            iso = None  # a second shape with the same code (Ashmore and Cartier Islands, under Australia)
+        out = {"type": g["type"], "arcs": g["arcs"]}
+        if iso:
+            seen.add(iso)
+            out["id"] = iso
+            anchors[iso] = main_landmass_point(topo, g)
+        geoms.append(out)
+    for iso, point in MAP_POINTS.items():
+        assert iso not in anchors, iso
+        anchors[iso] = point
+    used = set()
+
+    def walk(a):
+        for x in a:
+            if isinstance(x, list):
+                walk(x)
+            else:
+                used.add(x if x >= 0 else ~x)
+
+    for g in geoms:
+        walk(g["arcs"])
+    new = {old: n for n, old in enumerate(sorted(used))}
+
+    def renumber(a):
+        return [renumber(x) if isinstance(x, list) else (new[x] if x >= 0 else ~new[~x]) for x in a]
+
+    for g in geoms:
+        g["arcs"] = renumber(g["arcs"])
+    topology = {"type": "Topology", "transform": topo["transform"],
+                "objects": {"countries": {"type": "GeometryCollection", "geometries": geoms}},
+                "arcs": [topo["arcs"][i] for i in sorted(used)]}
+    return {"topology": topology, "anchors": dict(sorted(anchors.items()))}
+
+
+def write_map():
+    doc = build_map(read_world_atlas(RAW / WORLD_ATLAS), read_m49(RAW / "m49.html"))
+    (OUT / "map.json").write_text(json.dumps(doc, separators=(",", ":")) + "\n", encoding="utf-8")
 
 
 def read_eia(path):
@@ -206,6 +324,7 @@ def build():
     (OUT / "countries.json").write_text(
         json.dumps({"years": list(YEARS), "countries": dict(sorted(countries.items()))}, ensure_ascii=False,
                    separators=(",", ":")) + "\n", encoding="utf-8")
+    write_map()
     (OUT / "index.json").write_text(json.dumps({"years": list(YEARS)}) + "\n", encoding="utf-8")
 
 
