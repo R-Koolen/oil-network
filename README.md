@@ -9,7 +9,7 @@ Work in progress: built by OpenRig agents, reviewed and published by a human.
 
 ```sh
 python3 -m http.server -d docs                  # then open http://localhost:8000/ (fetch needs HTTP, not file://)
-python3 -m unittest discover -s tests           # site guards: nothing loads from outside the site, CSP, vendored D3, attribution
+python3 -m unittest discover -s tests           # site guards (no outside origins, CSP, vendored D3, attribution) and compute.js vs Python (needs node)
 python3 -m unittest discover -s pipeline        # data pipeline checks
 ```
 

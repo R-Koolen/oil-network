@@ -46,3 +46,23 @@ svg { width: 100%; height: auto; display: block; }
 .link.products { stroke: var(--products); }
 .link:hover { stroke-opacity: 0.9; }
 .legend text { font-size: 11px; fill: var(--muted); }
+#controls { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+#controls label, #controls output { font-weight: 600; }
+#controls output { min-width: 3.5em; font-variant-numeric: tabular-nums; }
+#year { flex: 1; max-width: 520px; }
+section h2 { font-size: 1.1rem; margin: 28px 0 4px; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0 0 8px; }
+#world { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+#world figure { margin: 0; }
+#world figcaption { font-size: 0.85rem; font-weight: 600; }
+#world .chosen { margin: 0; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+svg.mini { width: 100%; height: auto; }
+.mini .axis { stroke: var(--nodata); stroke-width: 1; }
+.mini .series { fill: none; stroke: var(--node); stroke-width: 1.5; }
+.mini .marker { stroke: var(--crude); fill: var(--crude); stroke-width: 1; }
+.mini .tick { font-size: 10px; fill: var(--muted); }
+#moves { font-size: 0.9rem; }
+#moves .lead { font-weight: 600; margin: 0 0 4px; }
+.moves-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 24px; }
+#moves h4 { margin: 0 0 2px; font-size: 0.85rem; }
+#moves ul { margin: 0; padding-left: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
