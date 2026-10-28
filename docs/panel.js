@@ -4,7 +4,6 @@
 // Defines the global OilPanel.
 (function () {
   const int = d3.format(",.0f");
-  const pct = d3.format(".0%");
   // kusd is thousand US$: 1e6 of it is a billion. Smaller values in millions or thousands, so they don't print as 0.0 billion.
   const usd = (kusd) => {
     if (kusd >= 1e6 || kusd === 0) return `US$${d3.format(",.1f")(kusd / 1e6)} billion`;
@@ -58,7 +57,7 @@
     div.append("h4").text(title);
     const ul = div.append("ul");
     if (!rows.length) ul.append("li").text("none listed");
-    rows.forEach((r) => ul.append("li").text(`${names.get(r.id) || r.id}: ${pct(r.share)} (${usd(r.kusd)})`));
+    rows.forEach((r) => ul.append("li").text(`${names.get(r.id) || r.id}: ${OilCompute.formatShare(r.share)} (${usd(r.kusd)})`));
   }
 
   function tradeSection(root, ctx) {

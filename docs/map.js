@@ -61,7 +61,7 @@
         el.classed("plain", !color || !d.id).classed("nodata", !!color && (!d.id || v === undefined));
         if (color && d.id && v !== undefined) el.attr("fill", color(v)); else el.attr("fill", null);
         el.select("title").remove();
-        if (d.id) {
+        if (d.id && !el.classed("inert")) {
           const name = s.names.get(d.id) || d.id;
           el.append("title").text(color ? `${name}\n${s.shade.label}: ${v === undefined ? "no data" : `${int(v)} ${s.shade.unit}`}` : name);
         }

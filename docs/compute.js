@@ -77,6 +77,11 @@
     return { lines, missing };
   }
 
+  // A share as a whole-number percentage; anything above zero that would round to 0% reads "<1%".
+  function formatShare(share) {
+    return share > 0 && share < 0.005 ? "<1%" : `${Math.round(share * 100)}%`;
+  }
+
   // "#2020/USA" -> {year: 2020, country: "USA"}; anything else gives null parts. The country is only checked for
   // its shape here; the page checks it against the list of countries.
   function parseHash(hash, years) {
@@ -105,7 +110,7 @@
     };
   }
 
-  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, parseHash, formatHash, createSelection };
+  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, formatShare, parseHash, formatHash, createSelection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();

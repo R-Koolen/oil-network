@@ -116,6 +116,11 @@ class ComputeMatchesPython(unittest.TestCase):
                                {"year": None, "country": None}, {"year": None, "country": None},
                                "#2020/USA", "#2013"])
 
+    def test_small_shares_read_less_than_one_percent_not_zero(self):
+        js = ("const C=require('./docs/compute.js');console.log(JSON.stringify([0,0.00001,0.0049,0.005,0.0149,0.0151,0.5,1].map(C.formatShare)))")
+        out = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        self.assertEqual(out, ["0%", "<1%", "<1%", "1%", "1%", "2%", "50%", "100%"])
+
     def test_selection_notifies_only_on_change(self):
         js = ("const C=require('./docs/compute.js');const s=C.createSelection();let n=[];s.subscribe(v=>n.push(v));"
               "s.set('USA');s.set('USA');s.set(null);s.set(null);console.log(JSON.stringify([n,s.get()]))")

@@ -23,7 +23,7 @@ const MIN_PLOT_H = 760;
 
 const COLUMNS = [
   { layer: "production", title: "Crude oil production" },
-  { layer: "refining_throughput", title: "Refining (crude processed)" },
+  { layer: "refining_throughput", title: "Refining (crude processed)", also: { layer: "refining_capacity", label: "Refining capacity" } },
   { layer: "consumption", title: "Petroleum consumption" },
 ];
 
@@ -162,7 +162,9 @@ function drawGraph(data) {
       .attr("dy", "0.35em")
       .attr("text-anchor", i === 0 ? "end" : "start")
       .text((d) => (d.value === null ? `${d.name} (no data)` : d.name));
-    node.append("title").text((d) => `${d.name}\n${c.title}: ${fmtValue(d.value, d.unit)}`);
+    const also = c.also && data.layers[c.also.layer];
+    node.append("title").text((d) => `${d.name}\n${c.title}: ${fmtValue(d.value, d.unit)}` +
+      (also ? `\n${c.also.label}: ${fmtValue(also.values[d.id] ?? null, also.unit)}` : ""));
     node.on("click", (_, d) => selection.set(selection.get() === d.id ? null : d.id));
   });
 
@@ -313,7 +315,9 @@ function updateMap() {
   const layer = d3.select("#map-measure").property("value");
   const shadeOn = d3.select("#map-shade").property("checked");
   d3.select("#map-measure").property("disabled", !shadeOn);
+  // year files lack a few small places in some years; countries.json has all their names
   const names = new Map(current.data.nodes.map((n) => [n.id, n.name]));
+  if (countriesFile) for (const [id, c] of Object.entries(countriesFile.countries)) if (!names.has(id)) names.set(id, c.name);
   const result = mapView.update({
     names,
     flows: current.flows,

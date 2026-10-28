@@ -124,3 +124,4 @@ svg.mini { width: 100%; height: auto; }
 #map .end.selected { fill: var(--crude); stroke: var(--fg); stroke-width: 1.4; r: 4.5px; }
 #legend svg { width: 100%; max-width: 420px; height: auto; display: block; }
 .legend .axis { stroke: var(--nodata); stroke-width: 1; }
+:focus-visible { outline: 2px solid var(--products); outline-offset: 2px; }
