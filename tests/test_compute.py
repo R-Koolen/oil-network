@@ -106,6 +106,18 @@ class ComputeMatchesPython(unittest.TestCase):
         self.assertEqual(got["missing"], 1)
         self.assertEqual(got["lines"], [{"from": "A", "to": "B", "kusd": 1, "a": [1, 2], "b": [3, 4]}])
 
+    def test_a_line_over_the_date_line_is_two_runs_that_meet_at_the_edge(self):
+        js = ("const C=require('./docs/compute.js');const fs=require('fs');const m=require('./docs/data/map.json');"
+              "const out={cross:0,bad:[]};for(const y of require('./docs/data/index.json').years){const d=JSON.parse(fs.readFileSync('docs/data/'+y+'.json'));"
+              "for(const g of ['crude','products'])for(const f of C.topFlows(d.trade[g],60).shown){const a=m.anchors[f.from],b=m.anchors[f.to];"
+              "const r=C.wrapLine(a,b,48);const first=r[0][0],last=r[r.length-1][r[r.length-1].length-1];"
+              "const ok=r.length<=2&&Math.abs(first[0]-a[0])<1e-9&&Math.abs(last[0]-b[0])<1e-9&&Math.abs(last[1]-b[1])<1e-9&&r.flat().every(p=>Math.abs(p[0])<=180)&&"
+              "(r.length===1||(Math.abs(r[0][r[0].length-1][0])===180&&r[0][r[0].length-1][0]===-r[1][0][0]&&r[0][r[0].length-1][1]===r[1][0][1]));"
+              "if(r.length===2)out.cross++;if(!ok)out.bad.push([y,f.from,f.to])}}console.log(JSON.stringify(out))")
+        out = json.loads(subprocess.run(["node", "-e", js], cwd=ROOT, check=True, capture_output=True, text=True).stdout)
+        self.assertEqual(out["bad"], [])
+        self.assertGreater(out["cross"], 0)  # the Pacific routes are in the data, so the cut is exercised
+
     def test_hash_round_trip(self):
         js = ("const C=require('./docs/compute.js');const y=[2013,2020,2023];"
               "console.log(JSON.stringify([C.parseHash('#2020/usa',y),C.parseHash('#2020',y),C.parseHash('#1999/USA',y),"

@@ -45,6 +45,14 @@
     const land = svg.append("g").selectAll("path").data(features).join("path")
       .attr("class", "country").attr("d", path)
       .on("click", function (_, d) { if (d.id && !d3.select(this).classed("inert")) onSelect(d.id); });
+    // Great circles, except a flow over the date line: the map is cut there, so it is drawn as a straight line in
+    // longitude and latitude (OilCompute.wrapLine) that leaves one edge and enters the other at the same height.
+    const line = d3.line();
+    const flowPath = (f) => {
+      const runs = OilCompute.wrapLine(f.a, f.b, 48);
+      if (runs.length === 1) return path({ type: "LineString", coordinates: [f.a, f.b] });
+      return runs.map((r) => line(r.map(projection))).join("");
+    };
     const flowLayer = svg.append("g");
     const endLayer = svg.append("g");
 
@@ -74,7 +82,7 @@
         flowLayer.selectAll("path").data(lines).join("path")
           .attr("class", (f) => `link ${f.group}`)
           .attr("stroke-width", (f) => s.width(f.kusd))
-          .attr("d", (f) => path({ type: "LineString", coordinates: [f.a, f.b] }))
+          .attr("d", flowPath)
           .append("title").text(s.flowTitle);
         const ends = [...new Set(lines.flatMap((f) => [f.from, f.to]))];
         endLayer.selectAll("circle").data(ends).join("circle")

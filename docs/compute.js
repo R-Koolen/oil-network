@@ -77,6 +77,32 @@
     return { lines, missing };
   }
 
+  // A straight line in longitude and latitude from a to b, going the shorter way round the globe, as runs of
+  // [lon, lat] points. A line over the date line comes back as two runs that end and start exactly on +/-180
+  // at the same latitude, so a map that cuts there can draw them as one line leaving one edge and entering the other.
+  function wrapLine(a, b, steps) {
+    let dLon = b[0] - a[0];
+    if (dLon > 180) dLon -= 360;
+    else if (dLon < -180) dLon += 360;
+    const at = (t) => [a[0] + dLon * t, a[1] + (b[1] - a[1]) * t];
+    const norm = (lon) => (lon > 180 ? lon - 360 : lon < -180 ? lon + 360 : lon);
+    const runs = [[]];
+    let prev = at(0);
+    runs[0].push([norm(prev[0]), prev[1]]);
+    for (let i = 1; i <= steps; i++) {
+      const cur = at(i / steps);
+      const edge = (cur[0] > 180 && prev[0] <= 180) ? 180 : (cur[0] < -180 && prev[0] >= -180) ? -180 : null;
+      if (edge !== null) {
+        const lat = prev[1] + (cur[1] - prev[1]) * (edge - prev[0]) / (cur[0] - prev[0]);
+        runs[runs.length - 1].push([edge, lat]);
+        runs.push([[-edge, lat]]);
+      }
+      runs[runs.length - 1].push([norm(cur[0]), cur[1]]);
+      prev = cur;
+    }
+    return runs;
+  }
+
   // A share as a whole-number percentage; anything above zero that would round to 0% reads "<1%".
   function formatShare(share) {
     return share > 0 && share < 0.005 ? "<1%" : `${Math.round(share * 100)}%`;
@@ -110,7 +136,7 @@
     };
   }
 
-  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, formatShare, parseHash, formatHash, createSelection };
+  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, wrapLine, formatShare, parseHash, formatHash, createSelection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();
