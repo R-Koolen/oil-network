@@ -152,7 +152,9 @@ The country shapes for the map, and a place on the map for every country, with t
 - `anchors`: `[longitude, latitude]` for each id, where the page puts a country's end of a trade line and a marker.
   For a country with a shape, it is the centre of its **largest polygon**, so France is metropolitan France and the
   United States the contiguous states, not the middle of everything. Longitudes are made continuous across the
-  antimeridian first, so Russia and Fiji come out right. For areas BACI has trade for but the map has no shape for
+  antimeridian first, so Russia and Fiji come out right. Three countries where that polygon is not where the oil
+  trade is are moved by hand (`MAP_ANCHOR_FIX`): Indonesia to Java (not Kalimantan), Malaysia to the peninsula (not
+  Borneo) and New Zealand to the North Island. For areas BACI has trade for but the map has no shape for
   (`BES`, `CCK`, `CXR`, `GIB`, `MYT`, `TKL`, `TUV`), a point typed into `build.py` (`MAP_POINTS`, approximate) is used.
   A test checks that every country at the end of any flow in any year has an anchor.
 - EIA-only areas that have no trade (`GLP`, `GUF`, `MTQ`, `REU`, `NLDA`, `USIQ`, `WAK`) have no shape and no anchor.

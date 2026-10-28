@@ -318,6 +318,7 @@ function updateMap() {
     names,
     flows: current.flows,
     anchors: mapData.anchors,
+    selectable: countriesFile ? new Set(Object.keys(countriesFile.countries)) : null,
     showFlows: d3.select("#map-flows").property("checked"),
     shade: shadeOn
       ? { ...measure, values: current.data.layers[layer].values, max: countriesFile ? OilCompute.shadeMax(countriesFile.countries, layer) : null }

@@ -113,6 +113,7 @@ svg.mini { width: 100%; height: auto; }
 .map-wrap svg { display: block; }
 .sphere { fill: var(--ocean); stroke: var(--nodata); stroke-width: 0.8; }
 #map .country { stroke: var(--bg); stroke-width: 0.35; cursor: pointer; }
+#map .country.inert { cursor: default; }
 .country.plain { fill: var(--land); }
 .country.nodata { fill: var(--nodata-fill); }
 #map .country.selected { stroke: var(--fg); stroke-width: 1.6; }

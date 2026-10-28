@@ -44,7 +44,7 @@
     svg.append("path").attr("class", "sphere").attr("d", path(sphere));
     const land = svg.append("g").selectAll("path").data(features).join("path")
       .attr("class", "country").attr("d", path)
-      .on("click", (_, d) => { if (d.id) onSelect(d.id); });
+      .on("click", function (_, d) { if (d.id && !d3.select(this).classed("inert")) onSelect(d.id); });
     const flowLayer = svg.append("g");
     const endLayer = svg.append("g");
 
@@ -55,6 +55,8 @@
         : null;
       land.each(function (d) {
         const el = d3.select(this);
+        // a shape the data has nothing for (Isle of Man, South Georgia, ...) is plain land that cannot be selected
+        el.classed("inert", !d.id || (s.selectable !== null && !s.selectable.has(d.id)));
         const v = color && d.id ? s.shade.values[d.id] : undefined;
         el.classed("plain", !color || !d.id).classed("nodata", !!color && (!d.id || v === undefined));
         if (color && d.id && v !== undefined) el.attr("fill", color(v)); else el.attr("fill", null);

@@ -51,6 +51,13 @@ MAP_POINTS = {
     "TKL": [-171.85, -9.17],  # Tokelau
     "TUV": [179.20, -8.52],   # Tuvalu
 }
+# Countries whose largest polygon is not where their oil trade is (refineries and ports): [longitude, latitude] of the
+# island or peninsula that is, replacing the largest-polygon location.
+MAP_ANCHOR_FIX = {
+    "IDN": [110.4, -7.3],   # Java, not Kalimantan
+    "MYS": [102.0, 4.0],    # the peninsula, not Borneo
+    "NZL": [175.5, -39.0],  # the North Island, not the South Island
+}
 LAYER_ORDER = ("production", "consumption", "refining_capacity", "refining_throughput")
 
 
@@ -149,6 +156,9 @@ def build_map(topo, m49):
         geoms.append(out)
     for iso, point in MAP_POINTS.items():
         assert iso not in anchors, iso
+        anchors[iso] = point
+    for iso, point in MAP_ANCHOR_FIX.items():
+        assert iso in anchors, iso
         anchors[iso] = point
     used = set()
 

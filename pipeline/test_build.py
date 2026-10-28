@@ -164,7 +164,7 @@ class MapData(unittest.TestCase):
 
     def test_the_countries_the_110m_map_lacks_have_shapes(self):
         ids = {g["id"] for g in self.GEOMS if "id" in g}
-        self.assertLessEqual({"SGP", "BHR", "HKG", "MLT", "TWN", "XKS", "FRA", "NOR", "USA"}, ids)
+        self.assertLessEqual({"SGP", "BHR", "HKG", "MLT", "TWN", "XKS", "FRA", "NOR", "USA", "AUS"}, ids)
 
     def test_point_only_areas_are_not_also_shapes(self):
         ids = {g["id"] for g in self.GEOMS if "id" in g}
@@ -185,6 +185,10 @@ class MapData(unittest.TestCase):
             self.assertTrue(min(ys) - 0.01 <= lat <= max(ys) + 0.01, g["id"])
             # a longitude may be wrapped past 180 inside a polygon that crosses the antimeridian
             self.assertTrue(any(min(xs) - 0.01 <= l <= max(xs) + 0.01 for l in (lon, lon + 360, lon - 360)), g["id"])
+
+    def test_overrides_are_used(self):
+        for iso, point in build.MAP_ANCHOR_FIX.items():
+            self.assertEqual(self.MAP["anchors"][iso], point)
 
     def test_main_landmass_not_the_middle_of_everything(self):
         a = self.MAP["anchors"]
