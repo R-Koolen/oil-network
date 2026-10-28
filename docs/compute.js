@@ -25,6 +25,23 @@
     return items.length ? y - gap : 0;
   }
 
+  // Where lines meet a node: the lines at one side of one node are spread evenly over its height, in the order of
+  // the nodes at their other end, so they leave without crossing. `ends` is [{node: {y, h}, other: y of the far end}];
+  // returns the y of each end, in the same order.
+  function spreadEnds(ends) {
+    const groups = new Map();
+    ends.forEach((e, i) => {
+      if (!groups.has(e.node)) groups.set(e.node, []);
+      groups.get(e.node).push(i);
+    });
+    const ys = new Array(ends.length);
+    for (const [node, idx] of groups) {
+      idx.sort((a, b) => ends[a].other - ends[b].other || a - b);
+      idx.forEach((i, k) => { ys[i] = node.y + (node.h * (k + 0.5)) / idx.length; });
+    }
+    return ys;
+  }
+
   // Largest rises and falls of a layer's country values between two years (kb/d change).
   // A country missing in either year is left out: no number is not zero.
   function biggestMoves(prevValues, curValues, names, n) {
@@ -77,6 +94,37 @@
     return { lines, missing };
   }
 
+  // A straight line in longitude and latitude from a to b, going the shorter way round the globe, as runs of
+  // [lon, lat] points. A line over the date line comes back as two runs that end and start exactly on +/-180
+  // at the same latitude, so a map that cuts there can draw them as one line leaving one edge and entering the other.
+  function wrapLine(a, b, steps) {
+    let dLon = b[0] - a[0];
+    if (dLon > 180) dLon -= 360;
+    else if (dLon < -180) dLon += 360;
+    const at = (t) => [a[0] + dLon * t, a[1] + (b[1] - a[1]) * t];
+    const norm = (lon) => (lon > 180 ? lon - 360 : lon < -180 ? lon + 360 : lon);
+    const runs = [[]];
+    let prev = at(0);
+    runs[0].push([norm(prev[0]), prev[1]]);
+    for (let i = 1; i <= steps; i++) {
+      const cur = at(i / steps);
+      const edge = (cur[0] > 180 && prev[0] <= 180) ? 180 : (cur[0] < -180 && prev[0] >= -180) ? -180 : null;
+      if (edge !== null) {
+        const lat = prev[1] + (cur[1] - prev[1]) * (edge - prev[0]) / (cur[0] - prev[0]);
+        runs[runs.length - 1].push([edge, lat]);
+        runs.push([[-edge, lat]]);
+      }
+      runs[runs.length - 1].push([norm(cur[0]), cur[1]]);
+      prev = cur;
+    }
+    return runs;
+  }
+
+  // A share as a whole-number percentage; anything above zero that would round to 0% reads "<1%".
+  function formatShare(share) {
+    return share > 0 && share < 0.005 ? "<1%" : `${Math.round(share * 100)}%`;
+  }
+
   // "#2020/USA" -> {year: 2020, country: "USA"}; anything else gives null parts. The country is only checked for
   // its shape here; the page checks it against the list of countries.
   function parseHash(hash, years) {
@@ -105,7 +153,7 @@
     };
   }
 
-  const api = { topFlows, layoutColumn, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, parseHash, formatHash, createSelection };
+  const api = { topFlows, layoutColumn, spreadEnds, biggestMoves, partners, overCapacityYears, shadeMax, mapLines, wrapLine, formatShare, parseHash, formatHash, createSelection };
   if (typeof module === "object" && module.exports) module.exports = api;
   else globalThis.OilCompute = api;
 })();
