@@ -146,7 +146,7 @@ svg { width: 100%; height: auto; display: block; }
 .node.nodata text { fill: var(--muted); }
 .node.selected rect { fill: var(--select); }
 .col-title { fill: var(--fg); }
-.node.selected text, .node text.measure-bold { font-weight: 700; }
+.node.selected text, .node text.measure-bold { font-weight: 700; } /* measure-bold: graph.js measures the gutter with it */
 .node:hover text { text-decoration: underline; }
 .link { fill: none; stroke-opacity: 0.38; transition: stroke-opacity 120ms ease-out; }
 .link.crude { stroke: var(--crude); }

@@ -190,17 +190,8 @@ function drawGraph(data) {
       .attr("dy", "0.35em")
       .attr("text-anchor", i === 0 ? "end" : "start")
       .text((d) => (d.value === null ? `${d.name} (no data)` : d.name));
-    // Lines leave the middle column where its labels are: an opaque plate behind each label, as wide as the label is
-    // when selected (bold), keeps it readable whatever the line opacity. The labels are drawn after every line.
-    if (shown.length === 3 && i === 1) {
-      node.select("text").each(function () {
-        const label = d3.select(this).classed("measure-bold", true);
-        const b = this.getBBox();
-        label.classed("measure-bold", false);
-        d3.select(this.parentNode).insert("rect", "text").attr("class", "plate")
-          .attr("x", b.x - 2).attr("y", b.y).attr("width", b.width + 4).attr("height", b.height).attr("rx", 2);
-      });
-    }
+    // Lines leave the middle column where its labels are: an opaque plate behind each label (fitPlates) keeps it readable.
+    if (shown.length === 3 && i === 1) node.insert("rect", "text").attr("class", "plate").attr("rx", 2);
     const also = c.also && data.layers[c.also.layer];
     node.append("title").text((d) => `${d.name}\n${c.title}: ${fmtValue(d.value, d.unit)}` +
       (also ? `\n${c.also.label}: ${fmtValue(also.values[d.id] ?? null, also.unit)}` : ""));
@@ -301,10 +292,19 @@ function drawMoves(data, prev) {
   }
 }
 
+// Each plate is as wide as its label is now (the selected label is bold, so it is wider).
+function fitPlates() {
+  d3.selectAll("#chart .plate").each(function () {
+    const b = d3.select(this.parentNode).select("text").node().getBBox();
+    d3.select(this).attr("x", b.x - 2).attr("y", b.y).attr("width", b.width + 5).attr("height", b.height);
+  });
+}
+
 function highlight() {
   const sel = selection.get();
   if (mapView) mapView.highlight(sel);
   d3.selectAll("#chart .node").classed("selected", (d) => d.id === sel);
+  fitPlates();
   d3.selectAll("#chart .link")
     .classed("dim", (f) => sel !== null && f.from !== sel && f.to !== sel)
     .classed("focus", (f) => sel !== null && (f.from === sel || f.to === sel));
