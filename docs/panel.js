@@ -18,8 +18,7 @@
   // Source gaps worth saying out loud where they apply: country id -> why its numbers need care.
   const CAVEATS = {
     TWN: "BACI's “Other Asia, nes” is counted as Taiwan here and seems to include trade that is not Taiwan's. " +
-      "For example, Iran appears as its largest crude supplier in 2020–2022, under sanctions, and Russia as its " +
-      "largest petroleum products supplier in 2023.",
+      "For example, Iran appears as its largest crude supplier in 2020–2022, under sanctions.",
   };
 
   const W = 260, H = 120, PAD = { l: 8, r: 8, t: 16, b: 20 };
